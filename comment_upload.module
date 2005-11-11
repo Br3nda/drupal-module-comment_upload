@@ -1,0 +1,88 @@
+<?php
+// $Id: comment_upload.module,v 1.1 2005/11/11 06:58:13 eaton Exp $
+
+function comment_upload_help($section) {
+  switch ($section) {
+    case 'admin/modules#description':
+      return t('Allows users to attach files to comments. Requires upload.module and comment.module.');
+  }
+}
+function comment_upload_comment(&$comment, $op) {
+  static $file;
+  $cid = is_object($comment) ? $comment->cid : $comment['cid'];
+  switch ($op) {
+    case 'form':
+      $form = array();
+      $form['file'] = array(
+      '#type' => 'file',
+        '#title' => t('Attachment'),
+        '#size' => 50,
+        '#description' => $file || ($cid && $comment_file) ? t('You already have a file uploaded, if you upload another it\'ll overwrite the current one.') :''
+      );
+      $form['#attributes'] = array('enctype' => 'multipart/form-data');
+
+      return $form;
+      break;
+    case 'validate':
+      if ($file = file_check_upload('file')) {
+        $file = file_save_upload('file');
+      }
+      break;
+    case 'insert':
+      if ($file) {
+        file_save_upload($file, $file->filename);
+        $fid = db_next_id('{files}_fid');
+        db_query("INSERT INTO {files} (fid, nid, filename, filepath, filemime, filesize) VALUES (%d, %d, '%s', '%s', '%s', %d)", $fid, 0, $file->filename, $file->filepath, $file->filemime, $file->filesize);
+        db_query("INSERT INTO {comment_files} (cid, fid) VALUES (%d, %d)", $cid, $fid);
+      }
+      break;
+    case 'update':
+      // admin comment edit does not call validate, so we need to $file = file_check_upload('file')
+      if ($file || ($file = file_check_upload('file'))) {
+        file_save_upload($file, $file->filename);
+        $fid = _comment_upload_delete($cid);
+        db_query("UPDATE {files} SET filename = '%s', filepath = '%s', filemime = '%s', filesize = %d WHERE fid = %d", $file->filename, $file->filepath, $file->filemime, $file->filesize, $fid);
+      }
+      break;
+    case 'delete':
+      _comment_upload_delete($cid, TRUE);
+      break;
+    case 'view':
+      if ($file) {
+        $file_view = $file; // this is for preview
+      }
+      else {
+        $file_view = _comment_upload_load_file($cid);
+      }
+      if ($file_view) {
+        $comment->comment .= theme('comment_attachment', $file_view, $comment);
+      }
+      break;
+  }
+}
+
+function _comment_upload_load_file($cid) {
+  return db_fetch_object(db_query('SELECT * FROM {files} f INNER JOIN {comment_files} cf ON f.fid = cf.fid WHERE cf.cid = %d', $cid));
+}
+
+function _comment_upload_delete($cid, $db = FALSE) {
+  if ($file = _comment_upload_load_file($cid)) {
+    file_delete($file->filepath);
+    if ($db) {
+      db_query('DELETE FROM {files} WHERE fid = %d', $file->fid);
+      db_query('DELETE FROM {comment_files} WHERE cid = %d', $cid);
+    }
+    return $file->fid;
+  }
+}
+
+function theme_comment_attachment($file, $comment) {
+  $regex = '/\.('. ereg_replace(' +', '|', preg_quote('jpg jpeg gif png')) .')$/i';
+  if (preg_match($regex, $file->filename)) {
+    $html = '<img src="'. check_url(file_create_url($file->filepath)) .'"/>';
+  }
+  else {
+    $html = '<a href="'. check_url(file_create_url($file->filepath)) .'">'. check_plain($file->filename) .' ('. format_size($file->filesize) .')</a>';
+  }
+  return $html;
+}
