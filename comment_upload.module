@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.1 2005/11/11 06:58:13 eaton Exp $
+// $Id: comment_upload.module,v 1.2 2006/03/10 02:16:07 eaton Exp $
 
 function comment_upload_help($section) {
   switch ($section) {
@@ -17,7 +17,7 @@ function comment_upload_comment(&$comment, $op) {
       '#type' => 'file',
         '#title' => t('Attachment'),
         '#size' => 50,
-        '#description' => $file || ($cid && $comment_file) ? t('You already have a file uploaded, if you upload another it\'ll overwrite the current one.') :''
+        '#description' => $file || ($cid && $file) ? t('You already have a file uploaded, if you upload another it\'ll overwrite the current one.') :''
       );
       $form['#attributes'] = array('enctype' => 'multipart/form-data');
 

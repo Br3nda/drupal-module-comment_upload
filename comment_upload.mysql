@@ -1,8 +1,0 @@
---
--- Table structure for table 'comment_files'
---
-
-CREATE TABLE comment_files (
-  cid int NOT NULL default '0',
-  fid int NOT NULL default '0'
-) TYPE=MyISAM;
