@@ -6,8 +6,21 @@ function comment_upload_install() {
     case 'mysqli':
       db_query("CREATE TABLE comment_files (
           cid int NOT NULL default '0',
+          nid int NOT NULL default '0',
           fid int NOT NULL default '0'
-        ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;");
+        ) /*!40100 DEFAULT CHARACTER SET utf8 */;");
       break;
   }
+}
+
+function comment_upload_update_1() {
+  $ret = array();
+  $ret = update_sql("ALTER TABLE {comment_files} ADD nid int NOT NULL default '0'");
+  
+  // loop through all the comment upload records and populate the nid column
+  $results = db_query("SELECT c.cid, c.nid FROM {comments} c WHERE c.cid IN (SELECT DISTINCT cf.cid FROM {comment_files} cf)");
+  while ($c = db_fetch_object($results)) {
+    $ret = update_sql("UPDATE {comment_files} SET nid = $c->nid WHERE cid = $c->cid");
+  }
+  return $ret;
 }

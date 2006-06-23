@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.3 2006/03/10 03:20:59 eaton Exp $
+// $Id: comment_upload.module,v 1.4 2006/06/23 00:06:31 eaton Exp $
 
 function comment_upload_help($section) {
   switch ($section) {
@@ -8,87 +8,245 @@ function comment_upload_help($section) {
   }
 }
 function comment_upload_comment(&$comment, $op) {
-  static $file;
   $cid = is_object($comment) ? $comment->cid : $comment['cid'];
+  $cid = is_array($cid) ? $cid['#value'] : $cid;
   switch ($op) {
     case 'form':
-      $form = array();
-      $form['file'] = array(
-      '#type' => 'file',
-        '#title' => t('Attachment'),
-        '#size' => 50,
-        '#description' => $file || ($cid && $file) ? t('You already have a file uploaded, if you upload another it\'ll overwrite the current one.') :''
-      );
-      $form['#attributes'] = array('enctype' => 'multipart/form-data');
+      $node = node_load($comment['nid']['#value']);
+      if (!user_access('upload files') || !variable_get('comment_upload_'. $node->type, 1)) {
+        break;
+      }
+      $cobj->cid = $cid;
+      $cobj->files = _comment_upload_load_files($cid);
+      _upload_prepare($cobj);
+      $form = array('#attributes' => array('enctype' => 'multipart/form-data'));
+      if (variable_get('comment_upload_single', 0)) {
+        $form['upload'] = array(
+        '#type' => 'file',
+          '#title' => t('Attachment'),
+          '#size' => 50,
+          '#description' => !empty($cobj->files) ? t('You already have a file uploaded, if you upload another it will overwrite the current one.') :''
+          );
+      }
+      else {
+        drupal_add_js('misc/progress.js');
+        drupal_add_js('misc/upload.js');
 
+        // Attachments fieldset
+        $form['attachments'] = array(
+          '#type' => 'fieldset',
+          '#title' => t('File attachments'),
+          '#collapsible' => TRUE,
+          '#collapsed' => empty($cobj->files),
+          '#description' => t('Changes made to the attachments are not permanent until you save this post. The first "listed" file will be included in RSS feeds.'),
+          '#prefix' => '<div class="attachments">',
+          '#suffix' => '</div>',
+          '#weight' => 10,
+        );
+
+        // Wrapper for fieldset contents (used by upload JS).
+        $form['attachments']['wrapper'] = array(
+          '#prefix' => '<div id="attach-wrapper">',
+          '#suffix' => '</div>',
+        );
+        $form['attachments']['wrapper'] += _upload_form($cobj);
+
+        $form['attachments']['wrapper']['attach']['#value'] = url('comment_upload/js', NULL, NULL, TRUE);
+        $form['current']['cid'] = array('#type' => 'hidden', '#value' => $cid);
+        unset($form['attachments']['wrapper']['current']['vid']);
+      }
       return $form;
-      break;
     case 'validate':
-      $file = file_check_upload('file');
+      _upload_validate($comment);
       break;
     case 'insert':
-      if ($file) {
-        $file = file_save_upload($file, $file->filename);
-        $fid = db_next_id('{files}_fid');
-        db_query("INSERT INTO {files} (fid, nid, filename, filepath, filemime, filesize) VALUES (%d, %d, '%s', '%s', '%s', %d)", $fid, 0, $file->filename, $file->filepath, $file->filemime, $file->filesize);
-        db_query("INSERT INTO {comment_files} (cid, fid) VALUES (%d, %d)", $cid, $fid);
-      }
-      break;
     case 'update':
-      if ($file) {
-        $file = file_save_upload($file, $file->filename);
-        $f = _comment_upload_load_file($cid);
-        $fid = $f->fid;
-        if ($fid) {
-          db_query("UPDATE {files} SET filename = '%s', filepath = '%s', filemime = '%s', filesize = %d WHERE fid = %d", $file->filename, $file->filepath, $file->filemime, $file->filesize, $fid);
-        } else {
-          $fid = db_next_id('{files}_fid');
-          db_query("INSERT INTO {files} (fid, nid, filename, filepath, filemime, filesize) VALUES (%d, %d, '%s', '%s', '%s', %d)", $fid, 0, $file->filename, $file->filepath, $file->filemime, $file->filesize);
-          db_query("INSERT INTO {comment_files} (cid, fid) VALUES (%d, %d)", $cid, $fid);
-        }
-      } else {
-        _comment_upload_delete($cid, TRUE);
+      $node = node_load($comment['nid']);
+      if (user_access('upload files') && variable_get('comment_upload_'. $node->type, 1)) {
+        _comment_upload_save_files($comment);
       }
       break;
     case 'delete':
-      _comment_upload_delete($cid, TRUE);
+      _comment_upload_delete($cid);
       break;
     case 'view':
-      if ($file) {
-        $file_view = $file; // this is for preview
+      if (!user_access('view uploaded files')) {
+        break;
       }
-      else {
-        $file_view = _comment_upload_load_file($cid);
+      if (!isset($comment->files)) {
+        $comment->files = _comment_upload_load_files($cid, $comment->nid);
       }
-      if ($file_view) {
-        $comment->comment .= theme('comment_attachment', $file_view, $comment);
+      elseif (is_array($comment->files) && variable_get('comment_upload_single', 0)) {
+        // Simulate overwrite for preview
+        foreach ($comment->files as $file) {
+          if (strpos($file['fid'], 'upload') !== false) {
+            unset($comment->files[0]);
+            break;
+          }
+        }
+      }
+      if ($comment->files) {
+        if (count($comment->files) == 1 && variable_get('comment_upload_single', 0)) {
+          $files = $comment->files;
+          $comment->comment .= theme('comment_attachment', (object)array_pop($files), $comment);
+        }
+        else {
+          $comment->comment .= theme('upload_attachments', $comment->files);
+        }
       }
       break;
   }
 }
 
-function _comment_upload_load_file($cid) {
-  return db_fetch_object(db_query('SELECT * FROM {files} f INNER JOIN {comment_files} cf ON f.fid = cf.fid WHERE cf.cid = %d', $cid));
+function comment_upload_form_alter($form_id, &$form) {
+  if (isset($form['type']) && $form['type']['#value'] .'_node_settings' == $form_id) {
+    $form['workflow']['comment_upload_'. $form['type']['#value']] = array(
+      '#type' => 'radios', '#title' => t('Attachments on comments'), '#default_value' => variable_get('comment_upload_'. $form['type']['#value'], 1),
+      '#options' => array(t('Disabled'), t('Enabled')), '#weight' => 20,
+    );
+  }
+  else if ($form_id == 'upload_settings_form') {
+    $form['settings_general']['comment_upload_single'] = array(
+      '#type' => 'select', '#title' => t('Attachments on comments'), '#default_value' => variable_get('comment_upload_single', 0),
+      '#options' => array(t('Multiple'), t('Single')), '#description' => t('Set whether to allow only one attachment per comment'),
+    );
+    $form['settings_general']['comment_upload_inline_image'] = array(
+      '#type' => 'select', '#title' => t('Images on comments'), '#default_value' => variable_get('comment_upload_inline_image', 0),
+      '#options' => array(t('Normal attachment'), t('Inline display')), '#description' => t('Show uploaded image with comment or use a normal attachment link (single attachment mode only)'),
+    );
+  }
 }
 
-function _comment_upload_delete($cid, $db = FALSE) {
-  if ($file = _comment_upload_load_file($cid)) {
-    file_delete($file->filepath);
-    if ($db) {
-      db_query('DELETE FROM {files} WHERE fid = %d', $file->fid);
-      db_query('DELETE FROM {comment_files} WHERE cid = %d', $cid);
-    }
-    return $file->fid;
+function comment_upload_menu($may_cache) {
+  $items = array();
+  if ($may_cache) {
+    $items[] = array(
+      'path' => 'comment_upload/js',
+      'callback' => 'comment_upload_js',
+      'access' => user_access('upload files'),
+      'type' => MENU_CALLBACK
+    );
   }
+  return $items;
+}
+
+/**
+ * Menu-callback for JavaScript-based uploads.
+ */
+function comment_upload_js() {
+  // We only do the upload.module part of the node validation process.
+  $comment = (object)$_POST['edit'];
+
+  // Load existing files.
+  $comment->files = _comment_upload_load_files($comment->cid);
+
+  // Handle new uploads, and merge tmp files into node-files.
+  _upload_prepare($comment);
+  _upload_validate($comment);
+
+  $form = _upload_form($comment);
+  foreach (module_implements('form_alter') as $module) {
+    $function = $module .'_form_alter';
+    $function('upload_js', $form);
+  }
+  $form = form_builder('upload_js', $form);
+  $output = theme('status_messages') . form_render($form);
+
+  // We send the updated file attachments form.
+  print drupal_to_js(array('status' => TRUE, 'data' => $output));
+  exit;
+}
+
+function _comment_upload_load_files($cid, $nid = NULL) {
+  static $cache = array();
+  if ($nid) {
+    // Cache all for this node to avoid one query per comment
+    if (!isset($cache[$nid])) {
+      $cache[$nid] = array();
+      $result = db_query('SELECT * FROM {files} f INNER JOIN {file_revisions} r ON f.fid = r.fid INNER JOIN {comment_files} cf ON f.fid = cf.fid WHERE cf.nid = %d ORDER BY f.fid DESC', $nid);
+      while ($file = db_fetch_object($result)) {
+        $cache[$nid][$file->cid][] = $file;
+      }
+    }
+    return $cache[$nid][$cid];
+  }
+  else if ($cid) {
+    $result = db_query('SELECT * FROM {files} f INNER JOIN {file_revisions} r ON f.fid = r.fid INNER JOIN {comment_files} cf ON f.fid = cf.fid WHERE cf.cid = %d ORDER BY f.fid DESC', $cid);
+    while ($file = db_fetch_object($result)) {
+      $files[] = $file;
+    }
+    return $files;
+  }
+}
+
+function _comment_upload_save_files($comment) {
+  if (!is_array($comment['files'])) {
+    return;
+  }
+
+  foreach ($comment['files'] as $file) {
+    $file = (object)$file;
+
+    // Remove file. Process removals first since no further processing will be required.
+    if ($file->remove) {
+      // Remove file previews...
+      if (strpos($file->fid, 'upload') !== false) {
+        file_delete($file->filepath);
+      }
+
+      // Remove managed files.
+      else {
+        db_query('DELETE FROM {files} WHERE fid = %d', $file->fid);
+        db_query('DELETE FROM {file_revisions} WHERE fid = %d', $file->fid);
+        db_query('DELETE FROM {comment_files} WHERE fid = %d', $file->fid);
+      }
+    }
+
+    // New file upload
+    elseif (strpos($file->fid, 'upload') !== false) {
+      if ($file = file_save_upload($file, $file->filename)) {
+        // Overwrite existing in single-attachment mode
+        if (variable_get('comment_upload_single', 0) && isset($comment['files'][0])) {
+          db_query("UPDATE {files} SET filename = '%s', filepath = '%s', filemime = '%s', filesize = %d WHERE fid = %d", $file->filename, $file->filepath, $file->filemime, $file->filesize, $comment['files'][0]['fid']);
+        }
+        else {
+          $file->fid = db_next_id('{files}_fid');
+          db_query("INSERT INTO {files} (fid, nid, filename, filepath, filemime, filesize) VALUES (%d, %d, '%s', '%s', '%s', %d)", $file->fid, 0, $file->filename, $file->filepath, $file->filemime, $file->filesize);
+          db_query("INSERT INTO {file_revisions} (fid, vid, list, description) VALUES (%d, %d, %d, '%s')", $file->fid, 0, $file->list, $file->description);
+          db_query("INSERT INTO {comment_files} (fid, nid, cid) VALUES (%d, %d, %d)", $file->fid, $comment['nid'], $comment['cid']);
+        }
+      }
+      unset($_SESSION['file_previews'][$fid]);
+    }
+
+    // Update existing revision
+    else {
+      db_query("UPDATE {file_revisions} SET list = %d, description = '%s' WHERE fid = %d", $file->list, $file->description, $file->fid);
+    }
+  }
+}
+
+function _comment_upload_delete($cid) {
+  $files = _comment_upload_load_files($cid);
+  if (empty($files)) {
+    return;
+  }
+  foreach ($files as $file) {
+    file_delete($file->filepath);
+    db_query('DELETE FROM {files} WHERE fid = %d', $file->fid);
+    db_query('DELETE FROM {file_revisions} WHERE fid = %d', $file->fid);
+  }
+  db_query('DELETE FROM {comment_files} WHERE cid = %d', $cid);
 }
 
 function theme_comment_attachment($file, $comment) {
+  $href = check_url(strpos($file->fid, 'upload') === false ? file_create_url($file->filepath) : url(file_create_filename($file->filename, file_create_path())));
   $regex = '/\.('. ereg_replace(' +', '|', preg_quote('jpg jpeg gif png')) .')$/i';
-  if (preg_match($regex, $file->filename)) {
-    $html = '<img src="'. check_url(file_create_url($file->filepath)) .'"/>';
+  if (variable_get('comment_upload_inline_image', 0) && preg_match($regex, $file->filename)) {
+    $html = '<img src="'. $href .'"/>';
   }
   else {
-    $html = '<a href="'. check_url(file_create_url($file->filepath)) .'">'. check_plain($file->filename) .' ('. format_size($file->filesize) .')</a>';
+    $html = '<a href="'. $href .'">'. check_plain($file->filename) .' ('. format_size($file->filesize) .')</a>';
   }
   return $html;
 }
