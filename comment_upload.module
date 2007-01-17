@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.6.2.1 2007/01/17 14:45:40 heine Exp $
+// $Id: comment_upload.module,v 1.6.2.2 2007/01/17 14:48:31 heine Exp $
 
 function comment_upload_comment(&$comment, $op) {
   $cid = is_object($comment) ? $comment->cid : $comment['cid'];
@@ -44,6 +44,11 @@ function comment_upload_comment(&$comment, $op) {
           '#suffix' => '</div>',
         );
         $form['attachments']['wrapper'] += _upload_form($cobj);
+
+        // Enable the upload_preview module (when enabled) to modify the attachment display.
+        if (module_exists('upload_preview')) {
+          _upload_preview_node_form($form['attachments']['wrapper']['files'], 0);
+        }
 
         $form['attachments']['wrapper']['attach-url']['#value'] = url('comment_upload/js', NULL, NULL, TRUE);
         $form['current']['cid'] = array('#type' => 'hidden', '#value' => $cid);
