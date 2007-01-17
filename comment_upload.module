@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.6.2.3 2007/01/17 15:43:32 heine Exp $
+// $Id: comment_upload.module,v 1.6.2.4 2007/01/17 15:44:14 heine Exp $
 
 function comment_upload_comment(&$comment, $op) {
   $cid = is_object($comment) ? $comment->cid : $comment['cid'];
@@ -258,18 +258,6 @@ function theme_comment_attachments($files) {
     }
   }
   $html .= theme('upload_attachments', $files);
-  return $html;
-}
-
-function theme_comment_attachment($file, $comment) {
-  $href = check_url(strpos($file->fid, 'upload') === false ? file_create_url($file->filepath) : url(file_create_filename($file->filename, file_create_path())));
-  $regex = '/\.('. ereg_replace(' +', '|', preg_quote('jpg jpeg gif png')) .')$/i';
-  if (variable_get('comment_upload_inline_image', 0) && preg_match($regex, $file->filename)) {
-    $html = '<img src="'. $href .'"/>';
-  }
-  else {
-    $html = '<a href="'. $href .'">'. check_plain($file->filename) .' ('. format_size($file->filesize) .')</a>';
-  }
   return $html;
 }
 
