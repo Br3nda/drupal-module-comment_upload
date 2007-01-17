@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.4.2.1 2007/01/17 08:08:42 heine Exp $
+// $Id: comment_upload.module,v 1.4.2.2 2007/01/17 08:32:04 heine Exp $
 
 function comment_upload_help($section) {
   switch ($section) {
@@ -232,6 +232,18 @@ function _comment_upload_delete($cid) {
     db_query('DELETE FROM {comment_upload_files} WHERE fid = %d', $file->fid);
   }
 }
+
+function comment_upload_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  if ($op == 'delete') {
+    $result = db_query("SELECT * FROM {comment_upload_files} WHERE nid = %d", $node->nid);
+    while ($file = db_fetch_object($result)) {
+        file_delete($file->filepath);
+    }
+    // Delete all comments
+    db_query("DELETE FROM {comment_upload_files} WHERE nid = %d", $node->nid);
+  }
+}
+
 
 function theme_comment_attachment($file, $comment) {
   $href = check_url(strpos($file->fid, 'upload') === false ? file_create_url($file->filepath) : url(file_create_filename($file->filename, file_create_path())));
