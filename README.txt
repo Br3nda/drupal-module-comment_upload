@@ -1,10 +1,8 @@
-$Id: README.txt,v 1.1.4.1 2007/01/17 10:44:32 heine Exp $
+$Id: README.txt,v 1.1.4.2 2007/01/17 15:43:32 heine Exp $
 
 Description
 ===========
-Comment upload allows users to attach files to individual comments. If the attached
-file is an image and the comment upload mode is set to "single", it's displayed inline in the
-resulting comment. Otherwise, a hyperlink to the file is displayed after the comment's body.
+Comment upload allows users to attach files to individual comments.
 
 
 Dependencies
@@ -24,8 +22,8 @@ Installation & Configuration
      Administer >> Content management >> Content types (admin/content/types).
    * Choose on Administer >> Site configuration >> File uploads (admin/settings/uploads)
      whether to have single or multiple uploads per comment.
-     If you choose "single", you can choose whether to display images inline by selecting
-     "Inline display" for the "Images on comments" setting.
+     You can choose whether to display images inline by selecting "Inline display"
+     for the "Images on comments" setting.
 
 All other settings are inherited from the Upload module.
 
