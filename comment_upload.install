@@ -4,10 +4,17 @@ function comment_upload_install() {
   switch ($GLOBALS['db_type']) {
     case 'mysql':
     case 'mysqli':
-      db_query("CREATE TABLE comment_files (
-          cid int NOT NULL default '0',
-          nid int NOT NULL default '0',
-          fid int NOT NULL default '0'
+      db_query("CREATE TABLE `comment_upload_files` (
+          `fid` int(10) unsigned NOT NULL default '0',
+          `nid` int(10) unsigned NOT NULL default '0',
+          `cid` int NOT NULL default '0',
+          `filename` varchar(255) NOT NULL default '',
+          `filepath` varchar(255) NOT NULL default '',
+          `filemime` varchar(255) NOT NULL default '',
+          `filesize` int(10) unsigned NOT NULL default '0',
+           description varchar(255) NOT NULL default '',
+           list tinyint(1) unsigned NOT NULL default 0,
+           PRIMARY KEY (`fid`)
         ) /*!40100 DEFAULT CHARACTER SET utf8 */;");
       break;
   }
@@ -16,11 +23,44 @@ function comment_upload_install() {
 function comment_upload_update_1() {
   $ret = array();
   $ret = update_sql("ALTER TABLE {comment_files} ADD nid int NOT NULL default '0'");
-  
+
   // loop through all the comment upload records and populate the nid column
   $results = db_query("SELECT c.cid, c.nid FROM {comments} c WHERE c.cid IN (SELECT DISTINCT cf.cid FROM {comment_files} cf)");
   while ($c = db_fetch_object($results)) {
     $ret = update_sql("UPDATE {comment_files} SET nid = $c->nid WHERE cid = $c->cid");
   }
+  return $ret;
+}
+
+/**
+ * Move previously saved data from {files}, {file_revisions} and {comment_files}
+ * into {comment_upload_files} and {comment_upload_file_revisions}.
+ */
+function comment_upload_update_2() {
+  $ret = array();
+  $ret[] = update_sql("CREATE TABLE `comment_upload_files` (
+          `fid` int(10) unsigned NOT NULL default '0',
+          `nid` int(10) unsigned NOT NULL default '0',
+          `cid` int NOT NULL default '0',
+          `filename` varchar(255) NOT NULL default '',
+          `filepath` varchar(255) NOT NULL default '',
+          `filemime` varchar(255) NOT NULL default '',
+          `filesize` int(10) unsigned NOT NULL default '0',
+           description varchar(255) NOT NULL default '',
+           list tinyint(1) unsigned NOT NULL default 0,
+           PRIMARY KEY (`fid`)
+        ) /*!40100 DEFAULT CHARACTER SET utf8 */;");
+
+  $max_fid = db_result(db_query("SELECT MAX(fid) FROM {comment_files}"));
+  $results = db_query("SELECT f.fid, cf.nid, cf.cid, cf.cid, f.filename, f.filepath, f.filemime, f.filesize, r.list, r.description FROM {files} f INNER JOIN {file_revisions} r ON f.fid = r.fid INNER JOIN {comment_files} cf ON f.fid = cf.fid WHERE f.nid = 0");
+
+  while ($c = db_fetch_object($results)) {
+    db_query("INSERT INTO {comment_upload_files} (fid, nid, cid, filename, filepath, filemime, filesize, description, list) VALUES(%d, %d, %d, '%s', '%s', '%s', %d, '%s', %d)", $c->fid, $c->nid, $c->cid, $c->filename, $c->filepath, $c->filemime, $c->filesize, $c->description, $c->list);
+    db_query("DELETE FROM {files} WHERE fid = %d", $c->fid);
+    db_query("DELETE FROM {file_revisions} WHERE fid = %d", $c->fid);
+  }
+
+  $ret[] = update_sql("INSERT INTO {sequences} (name, id) VALUES('" . db_prefix_tables('{comment_upload_files}'). "_fid', $max_fid)");
+  $ret[] = update_sql("DROP TABLE {comment_files}");
   return $ret;
 }

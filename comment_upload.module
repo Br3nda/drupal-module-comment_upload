@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.4 2006/06/23 00:06:31 eaton Exp $
+// $Id: comment_upload.module,v 1.4.2.1 2007/01/17 08:08:42 heine Exp $
 
 function comment_upload_help($section) {
   switch ($section) {
@@ -38,7 +38,7 @@ function comment_upload_comment(&$comment, $op) {
           '#title' => t('File attachments'),
           '#collapsible' => TRUE,
           '#collapsed' => empty($cobj->files),
-          '#description' => t('Changes made to the attachments are not permanent until you save this post. The first "listed" file will be included in RSS feeds.'),
+          '#description' => t('Changes made to the attachments are not permanent until you save this post.'),
           '#prefix' => '<div class="attachments">',
           '#suffix' => '</div>',
           '#weight' => 10,
@@ -163,7 +163,7 @@ function _comment_upload_load_files($cid, $nid = NULL) {
     // Cache all for this node to avoid one query per comment
     if (!isset($cache[$nid])) {
       $cache[$nid] = array();
-      $result = db_query('SELECT * FROM {files} f INNER JOIN {file_revisions} r ON f.fid = r.fid INNER JOIN {comment_files} cf ON f.fid = cf.fid WHERE cf.nid = %d ORDER BY f.fid DESC', $nid);
+      $result = db_query('SELECT * FROM {comment_upload_files} f WHERE f.nid = %d ORDER BY f.fid DESC', $nid);
       while ($file = db_fetch_object($result)) {
         $cache[$nid][$file->cid][] = $file;
       }
@@ -171,7 +171,7 @@ function _comment_upload_load_files($cid, $nid = NULL) {
     return $cache[$nid][$cid];
   }
   else if ($cid) {
-    $result = db_query('SELECT * FROM {files} f INNER JOIN {file_revisions} r ON f.fid = r.fid INNER JOIN {comment_files} cf ON f.fid = cf.fid WHERE cf.cid = %d ORDER BY f.fid DESC', $cid);
+    $result = db_query('SELECT * FROM {comment_upload_files} f WHERE f.cid = %d ORDER BY f.fid DESC', $cid);
     while ($file = db_fetch_object($result)) {
       $files[] = $file;
     }
@@ -196,9 +196,7 @@ function _comment_upload_save_files($comment) {
 
       // Remove managed files.
       else {
-        db_query('DELETE FROM {files} WHERE fid = %d', $file->fid);
-        db_query('DELETE FROM {file_revisions} WHERE fid = %d', $file->fid);
-        db_query('DELETE FROM {comment_files} WHERE fid = %d', $file->fid);
+        db_query('DELETE FROM {comment_upload_files} WHERE fid = %d', $file->fid);
       }
     }
 
@@ -207,21 +205,19 @@ function _comment_upload_save_files($comment) {
       if ($file = file_save_upload($file, $file->filename)) {
         // Overwrite existing in single-attachment mode
         if (variable_get('comment_upload_single', 0) && isset($comment['files'][0])) {
-          db_query("UPDATE {files} SET filename = '%s', filepath = '%s', filemime = '%s', filesize = %d WHERE fid = %d", $file->filename, $file->filepath, $file->filemime, $file->filesize, $comment['files'][0]['fid']);
+          db_query("UPDATE {comment_upload_files} SET filename = '%s', filepath = '%s', filemime = '%s', filesize = %d WHERE fid = %d", $file->filename, $file->filepath, $file->filemime, $file->filesize, $comment['files'][0]['fid']);
         }
         else {
-          $file->fid = db_next_id('{files}_fid');
-          db_query("INSERT INTO {files} (fid, nid, filename, filepath, filemime, filesize) VALUES (%d, %d, '%s', '%s', '%s', %d)", $file->fid, 0, $file->filename, $file->filepath, $file->filemime, $file->filesize);
-          db_query("INSERT INTO {file_revisions} (fid, vid, list, description) VALUES (%d, %d, %d, '%s')", $file->fid, 0, $file->list, $file->description);
-          db_query("INSERT INTO {comment_files} (fid, nid, cid) VALUES (%d, %d, %d)", $file->fid, $comment['nid'], $comment['cid']);
+          $file->fid = db_next_id('{comment_upload_files}_fid');
+          db_query("INSERT INTO {comment_upload_files} (fid, nid, cid, filename, filepath, filemime, filesize, description, list) VALUES (%d, %d, %d, '%s', '%s', '%s', %d, '%s', %d)", $file->fid, $comment['nid'], $comment['cid'], $file->filename, $file->filepath, $file->filemime, $file->filesize, $file->description, $file->list);
         }
       }
       unset($_SESSION['file_previews'][$fid]);
     }
 
-    // Update existing revision
+    // Update existing description.
     else {
-      db_query("UPDATE {file_revisions} SET list = %d, description = '%s' WHERE fid = %d", $file->list, $file->description, $file->fid);
+      db_query("UPDATE {comment_upload_files} SET list = %d, description = '%s' WHERE fid = %d", $file->list, $file->description, $file->fid);
     }
   }
 }
@@ -233,10 +229,8 @@ function _comment_upload_delete($cid) {
   }
   foreach ($files as $file) {
     file_delete($file->filepath);
-    db_query('DELETE FROM {files} WHERE fid = %d', $file->fid);
-    db_query('DELETE FROM {file_revisions} WHERE fid = %d', $file->fid);
+    db_query('DELETE FROM {comment_upload_files} WHERE fid = %d', $file->fid);
   }
-  db_query('DELETE FROM {comment_files} WHERE cid = %d', $cid);
 }
 
 function theme_comment_attachment($file, $comment) {
@@ -249,4 +243,29 @@ function theme_comment_attachment($file, $comment) {
     $html = '<a href="'. $href .'">'. check_plain($file->filename) .' ('. format_size($file->filesize) .')</a>';
   }
   return $html;
+}
+
+function comment_upload_file_download($file) {
+  $file = file_create_path($file);
+  $result = db_query("SELECT f.* FROM {comment_upload_files} f WHERE filepath = '%s'", $file);
+  if ($file = db_fetch_object($result)) {
+    if (user_access('view uploaded files')) {
+      $node = node_load($file->nid);
+      if (node_access('view', $node)) {
+        $name = mime_header_encode($file->filename);
+        $type = mime_header_encode($file->filemime);
+        return array(
+          'Content-Type: '. $type .'; name='. $name,
+          'Content-Length: '. $file->filesize,
+          'Expires: 0', 'Pragma: cache', 'Cache-Control: private'
+        );
+      }
+      else {
+        return -1;
+      }
+    }
+    else {
+      return -1;
+    }
+  }
 }
