@@ -1,12 +1,6 @@
 <?php
-// $Id: comment_upload.module,v 1.5 2007/01/17 09:08:52 heine Exp $
+// $Id: comment_upload.module,v 1.6 2007/01/17 10:00:18 heine Exp $
 
-function comment_upload_help($section) {
-  switch ($section) {
-    case 'admin/modules#description':
-      return t('Allows users to attach files to comments. Requires upload.module and comment.module.');
-  }
-}
 function comment_upload_comment(&$comment, $op) {
   $cid = is_object($comment) ? $comment->cid : $comment['cid'];
   $cid = is_array($cid) ? $cid['#value'] : $cid;
@@ -51,7 +45,7 @@ function comment_upload_comment(&$comment, $op) {
         );
         $form['attachments']['wrapper'] += _upload_form($cobj);
 
-        $form['attachments']['wrapper']['attach']['#value'] = url('comment_upload/js', NULL, NULL, TRUE);
+        $form['attachments']['wrapper']['attach-url']['#value'] = url('comment_upload/js', NULL, NULL, TRUE);
         $form['current']['cid'] = array('#type' => 'hidden', '#value' => $cid);
         unset($form['attachments']['wrapper']['current']['vid']);
       }
@@ -99,20 +93,28 @@ function comment_upload_comment(&$comment, $op) {
 }
 
 function comment_upload_form_alter($form_id, &$form) {
-  if (isset($form['type']) && $form['type']['#value'] .'_node_settings' == $form_id) {
-    $form['workflow']['comment_upload_'. $form['type']['#value']] = array(
-      '#type' => 'radios', '#title' => t('Attachments on comments'), '#default_value' => variable_get('comment_upload_'. $form['type']['#value'], 1),
+  if ($form_id == 'node_type_form') {
+    $form['workflow']['comment_upload'] = array(
+      '#type' => 'radios',
+      '#title' => t('Attachments on comments'),
+      '#default_value' => variable_get('comment_upload_'. $form['#node_type']->type, 1),
       '#options' => array(t('Disabled'), t('Enabled')), '#weight' => 20,
     );
   }
-  else if ($form_id == 'upload_settings_form') {
+  else if ($form_id == 'upload_admin_settings') {
     $form['settings_general']['comment_upload_single'] = array(
-      '#type' => 'select', '#title' => t('Attachments on comments'), '#default_value' => variable_get('comment_upload_single', 0),
-      '#options' => array(t('Multiple'), t('Single')), '#description' => t('Set whether to allow only one attachment per comment'),
+      '#type' => 'select',
+      '#title' => t('Attachments on comments'),
+      '#default_value' => variable_get('comment_upload_single', 0),
+      '#options' => array(t('Multiple'), t('Single')),
+      '#description' => t('Set whether to allow only one attachment per comment'),
     );
     $form['settings_general']['comment_upload_inline_image'] = array(
-      '#type' => 'select', '#title' => t('Images on comments'), '#default_value' => variable_get('comment_upload_inline_image', 0),
-      '#options' => array(t('Normal attachment'), t('Inline display')), '#description' => t('Show uploaded image with comment or use a normal attachment link (single attachment mode only)'),
+      '#type' => 'select',
+      '#title' => t('Images on comments'),
+      '#default_value' => variable_get('comment_upload_inline_image', 0),
+      '#options' => array(t('Normal attachment'), t('Inline display')),
+      '#description' => t('Show uploaded image with comment or use a normal attachment link (single attachment mode only)'),
     );
   }
 }
@@ -150,7 +152,7 @@ function comment_upload_js() {
     $function('upload_js', $form);
   }
   $form = form_builder('upload_js', $form);
-  $output = theme('status_messages') . form_render($form);
+  $output = theme('status_messages') . drupal_render($form);
 
   // We send the updated file attachments form.
   print drupal_to_js(array('status' => TRUE, 'data' => $output));
