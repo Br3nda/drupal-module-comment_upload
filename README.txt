@@ -1,4 +1,4 @@
-$Id: README.txt,v 1.1.4.2 2007/01/17 15:43:32 heine Exp $
+$Id: README.txt,v 1.1.4.3 2007/01/18 07:14:35 heine Exp $
 
 Description
 ===========
@@ -15,7 +15,7 @@ Comment upload depends on the following core modules:
 
 Installation & Configuration
 ============================
-1. Copy all the folder in the archive to your module folder.
+1. Copy the folder in the archive to your module folder (e.g. sites/all/modules).
 2. Enable comment upload on Administer >> Site building >> Modules (admin/build/modules).
 3. Configure the module
    * Enable "Attachments on comments" by editing content types on
