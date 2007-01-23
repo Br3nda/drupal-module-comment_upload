@@ -59,8 +59,9 @@ function comment_upload_update_2() {
     db_query("DELETE FROM {files} WHERE fid = %d", $c->fid);
     db_query("DELETE FROM {file_revisions} WHERE fid = %d", $c->fid);
   }
-
-  $ret[] = update_sql("INSERT INTO {sequences} (name, id) VALUES('" . db_prefix_tables('{comment_upload_files}'). "_fid', $max_fid)");
+  if ($max_fid) {
+    $ret[] = update_sql("INSERT INTO {sequences} (name, id) VALUES('" . db_prefix_tables('{comment_upload_files}'). "_fid', $max_fid)");
+  }
   $ret[] = update_sql("DROP TABLE {comment_files}");
   return $ret;
 }
