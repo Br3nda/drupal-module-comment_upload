@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.6.2.6 2007/01/26 17:46:55 heine Exp $
+// $Id: comment_upload.module,v 1.6.2.7 2007/01/27 11:57:05 heine Exp $
 
 function comment_upload_comment(&$comment, $op) {
   $cid = is_object($comment) ? $comment->cid : $comment['cid'];
@@ -260,10 +260,12 @@ function theme_comment_attachments($files) {
   if (variable_get('comment_upload_inline_image', 0)) {
     $regex = '/\.('. ereg_replace(' +', '|', preg_quote('jpg jpeg gif png')) .')$/i';
     foreach ($files as $key => $file) {
-      if (preg_match($regex, $file->filename)) {
-        unset($files[$key]);
-        $href = check_url(strpos($file->fid, 'upload') === false ? file_create_url($file->filepath) : url(file_create_filename($file->filename, file_create_path())));
-        $html .= '<img src="'. $href .'" title="'. check_plain($file->description) . '"/>';
+      if ($file->list) {
+        if (preg_match($regex, $file->filename)) {
+          unset($files[$key]);
+          $href = check_url(strpos($file->fid, 'upload') === false ? file_create_url($file->filepath) : url(file_create_filename($file->filename, file_create_path())));
+          $html .= '<img src="'. $href .'" title="'. check_plain($file->description) . '"/>';
+        }
       }
     }
   }
