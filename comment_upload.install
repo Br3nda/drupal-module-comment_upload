@@ -14,7 +14,7 @@ function comment_upload_install() {
            filesize int(10) unsigned NOT NULL default '0',
            description varchar(255) NOT NULL default '',
            list tinyint(1) unsigned NOT NULL default 0,
-           PRIMARY KEY (fid)
+           PRIMARY KEY (fid),
            KEY (nid)
         ) /*!40100 DEFAULT CHARACTER SET utf8 */;");
       break;
@@ -79,7 +79,7 @@ function comment_upload_update_2() {
   if($max_fid) {
     $ret[] = update_sql("INSERT INTO {sequences} (name, id) VALUES('" . db_prefix_tables('{comment_upload_files}'). "_fid', $max_fid)");
   }
-  
+
   $ret[] = update_sql("DROP TABLE {comment_files}");
   return $ret;
 }
