@@ -50,7 +50,7 @@ function comment_upload_update_1() {
 
 /**
  * Move previously saved data from {files}, {file_revisions} and {comment_files}
- * into {comment_upload_files} and {comment_upload_file_revisions}.
+ * into {comment_upload_files}.
  */
 function comment_upload_update_2() {
   $ret = array();
