@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.6.2.8 2007/02/06 11:38:19 heine Exp $
+// $Id: comment_upload.module,v 1.6.2.9 2007/02/18 10:36:45 heine Exp $
 
 /**
  * Implementation of hook_comment.
@@ -8,6 +8,7 @@ function comment_upload_comment(&$comment, $op) {
   $cid = is_object($comment) ? $comment->cid : $comment['cid'];
   $cid = is_array($cid) ? $cid['#value'] : $cid;
   switch ($op) {
+
     case 'form':
       $node = node_load($comment['nid']['#value']);
       if (!user_access('upload files') || !variable_get('comment_upload_'. $node->type, 1)) {
@@ -23,7 +24,7 @@ function comment_upload_comment(&$comment, $op) {
           '#title' => t('Attachment'),
           '#size' => 50,
           '#description' => !empty($cobj->files) ? t('You already have a file uploaded, if you upload another it will overwrite the current one.') :''
-          );
+        );
       }
       else {
         drupal_add_js('misc/progress.js');
@@ -58,9 +59,11 @@ function comment_upload_comment(&$comment, $op) {
         unset($form['attachments']['wrapper']['current']['vid']);
       }
       return $form;
+
     case 'validate':
       _upload_validate($comment);
       break;
+
     case 'insert':
     case 'update':
       $node = node_load($comment['nid']);
@@ -68,9 +71,11 @@ function comment_upload_comment(&$comment, $op) {
         _comment_upload_save_files($comment);
       }
       break;
+
     case 'delete':
       _comment_upload_delete($cid);
       break;
+
     case 'view':
       if (!user_access('view uploaded files')) {
         break;
@@ -245,12 +250,11 @@ function _comment_upload_save_files($comment) {
  */
 function _comment_upload_delete($cid) {
   $files = _comment_upload_load_files($cid);
-  if (empty($files)) {
-    return;
-  }
-  foreach ($files as $file) {
-    file_delete($file->filepath);
-    db_query('DELETE FROM {comment_upload_files} WHERE fid = %d', $file->fid);
+  if (!empty($files)) {
+    foreach ($files as $file) {
+      file_delete($file->filepath);
+      db_query('DELETE FROM {comment_upload_files} WHERE fid = %d', $file->fid);
+    }
   }
 }
 
@@ -318,7 +322,7 @@ function comment_upload_file_download($file) {
         return array(
           'Content-Type: '. $type .'; name='. $name,
           'Content-Length: '. $file->filesize,
-          'Expires: 0', 'Pragma: cache', 'Cache-Control: private'
+          'Expires: 0', 'Pragma: cache', 'Cache-Control: private',
         );
       }
       else {
