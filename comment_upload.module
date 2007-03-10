@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.6.2.9 2007/02/18 10:36:45 heine Exp $
+// $Id: comment_upload.module,v 1.6.2.10 2007/03/10 05:29:50 heine Exp $
 
 /**
  * Implementation of hook_comment.
@@ -217,6 +217,7 @@ function _comment_upload_save_files($comment) {
 
       // Remove managed files.
       else {
+        file_delete($file->filepath);
         db_query('DELETE FROM {comment_upload_files} WHERE fid = %d', $file->fid);
       }
     }
