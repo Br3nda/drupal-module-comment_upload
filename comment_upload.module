@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.4.2.3 2007/02/06 08:48:39 heine Exp $
+// $Id: comment_upload.module,v 1.4.2.4 2007/03/10 05:31:56 heine Exp $
 
 function comment_upload_help($section) {
   switch ($section) {
@@ -190,6 +190,7 @@ function _comment_upload_save_files($comment) {
 
       // Remove managed files.
       else {
+        file_delete($file->filepath);
         db_query('DELETE FROM {comment_upload_files} WHERE fid = %d', $file->fid);
       }
     }
