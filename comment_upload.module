@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.6.2.10 2007/03/10 05:29:50 heine Exp $
+// $Id: comment_upload.module,v 1.6.2.11 2007/05/13 19:54:01 heine Exp $
 
 /**
  * Implementation of hook_comment.
@@ -157,6 +157,10 @@ function comment_upload_js() {
   _upload_validate($comment);
 
   $form = _upload_form($comment);
+
+  // Swap upload/js for the comment_upload callback.
+  $form['attach-url']['#value'] = url('comment_upload/js', NULL, NULL, TRUE);
+
   foreach (module_implements('form_alter') as $module) {
     $function = $module .'_form_alter';
     $function('upload_js', $form);
