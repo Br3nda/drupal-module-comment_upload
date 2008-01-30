@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.4.2.4 2007/03/10 05:31:56 heine Exp $
+// $Id: comment_upload.module,v 1.4.2.5 2008/01/30 20:50:29 heine Exp $
 
 function comment_upload_help($section) {
   switch ($section) {
@@ -57,7 +57,15 @@ function comment_upload_comment(&$comment, $op) {
       }
       return $form;
     case 'validate':
-      _upload_validate($comment);
+      // When $op == 'validate', $comment is an array, whereas _upload_validate
+      // expects an object. We cast a copy of $comment to an object, as it is
+      // passed by reference and we don't want to affect other hook_comment
+      // implementations.
+
+      // Failure to implement the cast lead to a security issue; See
+      // "SA-2008-015 - Comment Upload - Arbitrary file upload" for details.
+      $comment_copy = (object) $comment;
+      _upload_validate($comment_copy);
       break;
     case 'insert':
     case 'update':
