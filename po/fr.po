@@ -1,0 +1,86 @@
+# translation of fr.po to
+# $Id: fr.po,v 1.1.2.1 2008/02/04 06:20:57 augustin Exp $
+# LANGUAGE translation of Drupal (general)
+# Generated from files:
+#  comment_upload.module,v 1.6.2.12 2008/01/30 20:51:22 heine
+#  n/a
+# Copyright YEAR NAME <EMAIL@ADDRESS>.
+# Augustin <beginner2005@masquilier.org>, 2008.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: fr\n"
+"POT-Creation-Date: 2008-02-04 14:12+0800\n"
+"PO-Revision-Date: 2008-02-04 14:20+0800\n"
+"Last-Translator: Augustin <beginner2005@masquilier.org>\n"
+"Language-Team:  <en@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"X-Generator: KBabel 1.10.2\n"
+
+#: comment_upload.module:24
+msgid "Attachment"
+msgstr "Pièces jointes"
+
+#: comment_upload.module:26
+msgid "You already have a file uploaded, if you upload another it will overwrite the current one."
+msgstr "Vous avez déjà téléchargé une pièce jointe. Si vous en téléchargez une autre, elle va remplacer la précédente."
+
+#: comment_upload.module:36
+msgid "File attachments"
+msgstr "Pièces jointes"
+
+#: comment_upload.module:39
+msgid "Changes made to the attachments are not permanent until you save this post."
+msgstr "Les changements de pièces jointes ne sont pas permanents tant que vous n'avez pas publié ce commentaire."
+
+#: comment_upload.module:117;125
+msgid "Attachments on comments"
+msgstr "Pièces jointes aux commentaires"
+
+#: comment_upload.module:119
+msgid "Disabled"
+msgstr ""
+
+#: comment_upload.module:119
+msgid "Enabled"
+msgstr ""
+
+#: comment_upload.module:127
+msgid "Multiple"
+msgstr ""
+
+#: comment_upload.module:127
+msgid "Single"
+msgstr ""
+
+#: comment_upload.module:128
+msgid "Set whether to allow only one attachment per comment"
+msgstr ""
+
+#: comment_upload.module:132
+msgid "Images on comments"
+msgstr ""
+
+#: comment_upload.module:134
+msgid "Normal attachment"
+msgstr ""
+
+#: comment_upload.module:134
+msgid "Inline display"
+msgstr ""
+
+#: comment_upload.module:135
+msgid "Show uploaded image with comment or use a normal attachment link (single attachment mode only)"
+msgstr ""
+
+#: comment_upload.info:0
+msgid "Comment upload"
+msgstr ""
+
+#: comment_upload.info:0
+msgid "Allows users to attach files to comments."
+msgstr ""
+
