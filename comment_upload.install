@@ -15,7 +15,8 @@ function comment_upload_install() {
            description varchar(255) NOT NULL default '',
            list tinyint(1) unsigned NOT NULL default 0,
            PRIMARY KEY (fid),
-           KEY (nid)
+           INDEX (nid),
+           INDEX cid_fid (cid, fid)
         ) /*!40100 DEFAULT CHARACTER SET utf8 */;");
       break;
     case 'pgsql':
@@ -93,6 +94,16 @@ function comment_upload_update_3() {
     case 'mysqli':
       $ret[] = update_sql("ALTER TABLE {comment_upload_files} CHANGE COLUMN cid cid int unsigned NOT NULL default '0'");
       $ret[] = update_sql("ALTER TABLE {comment_upload_files} ADD INDEX(nid)");
+    break;
+  }
+  return $ret;
+}
+
+function comment_upload_update_4() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $ret[] = update_sql("ALTER TABLE {comment_upload_files} ADD INDEX cid_fid (cid, fid)");
     break;
   }
   return $ret;
