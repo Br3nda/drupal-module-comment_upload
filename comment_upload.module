@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.6.2.12 2008/01/30 20:51:22 heine Exp $
+// $Id: comment_upload.module,v 1.6.2.13 2008/05/01 09:43:27 heine Exp $
 
 /**
  * Implementation of hook_comment.
@@ -306,7 +306,7 @@ function theme_comment_attachments($files) {
         if (preg_match($regex, $file->filename)) {
           unset($files[$key]);
           $href = check_url(strpos($file->fid, 'upload') === false ? file_create_url($file->filepath) : url(file_create_filename($file->filename, file_create_path())));
-          $html .= '<img src="'. $href .'" title="'. check_plain($file->description) . '"/>';
+          $html .= '<img src="'. $href .'" title="'. check_plain($file->description) . '" alt="'. check_plain($file->description) .'" />';
         }
       }
     }
