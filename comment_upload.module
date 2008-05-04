@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.6.2.13 2008/05/01 09:43:27 heine Exp $
+// $Id: comment_upload.module,v 1.6.2.14 2008/05/04 12:39:05 heine Exp $
 
 /**
  * Implementation of hook_comment.
@@ -146,6 +146,12 @@ function comment_upload_menu($may_cache) {
       'access' => user_access('upload files'),
       'type' => MENU_CALLBACK
     );
+  }
+  else {
+    $comment_upload_path = drupal_get_path('module', 'comment_upload');
+    if (module_exists('views')) {
+      require_once './'. $comment_upload_path .'/comment_upload_views.inc';
+    }
   }
   return $items;
 }
@@ -346,4 +352,14 @@ function comment_upload_file_download($file) {
       return -1;
     }
   }
+}
+
+/**
+ * Implementation of hook_views_tables.
+ * @ingroup comment_upload_views
+ * @see _comment_upload_views_tables
+ */
+function comment_upload_views_tables() {
+  require_once(drupal_get_path('module', 'comment_upload') .'/comment_upload_views.inc');
+  return _comment_upload_views_tables();
 }
