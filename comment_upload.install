@@ -1,40 +1,110 @@
 <?php
+// $Id: comment_upload.install,v 1.4 2008/08/07 07:41:30 heine Exp $
 
+
+/**
+ * @file
+ * The install file that defines the tables in use by comment_upload.
+ *
+ * Written by Heine Deelstra. Copyright (c) 2008 by Ustima (http://ustima.com). All rights reserved.
+ *
+ * This module is licensed under GPL v2. See LICENSE.txt for more information.
+ */
+
+/**
+ * Implementation of hook_install().
+ */
 function comment_upload_install() {
-  switch ($GLOBALS['db_type']) {
-    case 'mysql':
-    case 'mysqli':
-      db_query("CREATE TABLE {comment_upload_files} (
-          `fid` int(10) unsigned NOT NULL default '0',
-          `nid` int(10) unsigned NOT NULL default '0',
-          `cid` int NOT NULL default '0',
-          `filename` varchar(255) NOT NULL default '',
-          `filepath` varchar(255) NOT NULL default '',
-          `filemime` varchar(255) NOT NULL default '',
-          `filesize` int(10) unsigned NOT NULL default '0',
-           description varchar(255) NOT NULL default '',
-           list tinyint(1) unsigned NOT NULL default 0,
-           PRIMARY KEY (`fid`)
-        ) /*!40100 DEFAULT CHARACTER SET utf8 */;");
-      break;
-  }
+  drupal_install_schema('comment_upload');
 }
 
+/**
+ * Implementation of hook_uninstall().
+ */
+function comment_upload_uninstall() {
+  drupal_uninstall_schema('comment_upload');
+  db_query("DELETE FROM {variables} WHERE name LIKE 'comment_upload_%'");
+}
+
+/**
+ * Implementation of hook_schema().
+ */
+function comment_upload_schema() {
+  $schema['comment_upload'] = array(
+    'description' => t('Stores uploaded file information and table associations.'),
+    'fields' => array(
+      'fid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => t('Primary Key: The {files}.fid.'),
+      ),
+      'nid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => t('The {node}.nid of the comment the uploaded files is associated with.'),
+      ),
+      'cid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => t('The {comment}.cid associated with the uploaded file.'),
+      ),
+      'description' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => t('Description of the uploaded file.'),
+      ),
+      'list' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+        'description' => t('Whether the file should be visibly listed on the comment: yes(1) or no(0).'),
+      ),
+      'weight' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+        'description' => t('Weight of this upload in relation to other uploads - determines the order.'),
+      ),
+    ),
+    'primary key' => array('fid'),
+    'indexes' => array(
+      'cid_fid' => array('cid', 'fid'),
+      'nid' => array('nid'),
+    ),
+  );
+
+  return $schema;
+}
+
+// FIXME: Update from comment_upload 5.x
 function comment_upload_update_1() {
   $ret = array();
-  $ret = update_sql("ALTER TABLE {comment_files} ADD nid int NOT NULL default '0'");
+  $ret[] = update_sql("ALTER TABLE {comment_files} ADD nid int NOT NULL default '0'");
 
   // loop through all the comment upload records and populate the nid column
   $results = db_query("SELECT c.cid, c.nid FROM {comments} c WHERE c.cid IN (SELECT DISTINCT cf.cid FROM {comment_files} cf)");
   while ($c = db_fetch_object($results)) {
-    $ret = update_sql("UPDATE {comment_files} SET nid = $c->nid WHERE cid = $c->cid");
+    $ret[] = update_sql("UPDATE {comment_files} SET nid = $c->nid WHERE cid = $c->cid");
   }
   return $ret;
 }
 
 /**
  * Move previously saved data from {files}, {file_revisions} and {comment_files}
- * into {comment_upload_files} and {comment_upload_file_revisions}.
+ * into {comment_upload_files}.
+ *
+ * Implementation of hook_update_N().
  */
 function comment_upload_update_2() {
   $ret = array();
@@ -59,8 +129,103 @@ function comment_upload_update_2() {
     db_query("DELETE FROM {files} WHERE fid = %d", $c->fid);
     db_query("DELETE FROM {file_revisions} WHERE fid = %d", $c->fid);
   }
-
-  $ret[] = update_sql("INSERT INTO {sequences} (name, id) VALUES('" . db_prefix_tables('{comment_upload_files}'). "_fid', $max_fid)");
+  if ($max_fid) {
+    $ret[] = update_sql("INSERT INTO {sequences} (name, id) VALUES('". db_prefix_tables('{comment_upload_files}') ."_fid', $max_fid)");
+  }
   $ret[] = update_sql("DROP TABLE {comment_files}");
   return $ret;
 }
+
+/**
+ * Update column cid to be an unsigned int (MySQL only).
+ * Add index on nid.
+ *
+ * Implementation of hook_update_N().
+ */
+function comment_upload_update_3() {
+  $ret = array();
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $ret[] = update_sql("ALTER TABLE {comment_upload_files} CHANGE COLUMN cid cid int unsigned NOT NULL default '0'");
+      $ret[] = update_sql("ALTER TABLE {comment_upload_files} ADD INDEX(nid)");
+    break;
+  }
+  return $ret;
+}
+
+/**
+ * Move all data in {comment_upload_files} to {files} and {comment_upload}.
+ *
+ * Implementation of hook_update_N().
+ */
+function comment_upload_update_6000() {
+    $schema['comment_upload'] = array(
+    'description' => t('Stores uploaded file information and table associations.'),
+    'fields' => array(
+      'fid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => t('Primary Key: The {files}.fid.'),
+      ),
+      'nid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => t('The {node}.nid of the comment the uploaded files is associated with.'),
+      ),
+      'cid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => t('The {comment}.cid associated with the uploaded file.'),
+      ),
+      'description' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => t('Description of the uploaded file.'),
+      ),
+      'list' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+        'description' => t('Whether the file should be visibly listed on the comment: yes(1) or no(0).'),
+      ),
+      'weight' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+        'description' => t('Weight of this upload in relation to other uploads - determines the order.'),
+      ),
+    ),
+    'primary key' => array('fid'),
+    'indexes' => array(
+      'cid_fid' => array('cid', 'fid'),
+      'nid' => array('nid'),
+    ),
+  );
+
+
+  $ret = array();
+
+  db_create_table($ret, 'comment_upload', $schema['comment_upload']);
+
+  $result = db_query("SELECT cuf.*, c.uid FROM {comment_upload_files} cuf INNER JOIN {comments} c ON cuf.cid = c.cid");
+  while ($file = db_fetch_object($result)) {
+    unset($file->fid);
+    drupal_write_record('files', $file);
+    drupal_write_record('comment_upload', $file);
+  }
+  db_drop_table($ret, 'comment_upload_files');
+  return $ret;
+}
+
