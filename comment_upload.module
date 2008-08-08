@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7 2008/08/07 07:41:30 heine Exp $
+// $Id: comment_upload.module,v 1.7.2.1 2008/08/08 11:43:25 heine Exp $
 
 /**
  * @file
@@ -359,8 +359,22 @@ function comment_upload_js() {
     exit();
   }
 
-  $form_state = array('values' => $_POST, 'storage' => $cached_form_state['storage']);
+  if ($stored_form['form_id']['#value'] != 'comment_form') {
+    exit();
+  }
 
+  if (!$stored_form['attachments']) {
+    exit();
+  }
+
+  if (!comment_upload_is_valid_token($stored_form, $_POST)) {
+    form_set_error('form_token', t('Validation error, please try again. If this error persists, please contact the site administrator.'));
+    $output = theme('status_messages');
+    print drupal_to_js(array('status' => TRUE, 'data' => $output));
+    exit();
+  }
+
+  $form_state = array('values' => $_POST, 'storage' => $cached_form_state['storage']);
   comment_upload_process_files($stored_form, $form_state);
 
   foreach ($form_state['values']['files'] as $fid => $file) {
@@ -403,6 +417,19 @@ function comment_upload_js() {
   // the header output by drupal_json() causes problems in some browsers.
   print drupal_to_js(array('status' => TRUE, 'data' => $output));
   exit();
+}
+
+function comment_upload_is_valid_token($form, $form_values) {
+  // Forms for anonymous users do not have a form token.
+  // Ensure the user is anonymous to prevent bypassing the token validation
+  // via a build-id change to that of a previously requested anonymous form.
+  if (!isset($form['#token']) && $GLOBALS['user']->uid == 0) {
+    return TRUE;
+  }
+  else if (drupal_valid_token($form_values['form_token'], $form['#token'])) {
+    return TRUE;
+  }
+  return FALSE;
 }
 
 /**
