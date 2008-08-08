@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.1 2008/08/08 11:43:25 heine Exp $
+// $Id: comment_upload.module,v 1.7.2.2 2008/08/08 12:29:24 heine Exp $
 
 /**
  * @file
@@ -37,7 +37,7 @@ function comment_upload_menu() {
  * Implementation of hook_perm().
  */
 function comment_upload_perm() {
-  return array('upload files to comments');
+  return array('upload files to comments', 'view files uploaded to comments');
 }
 
 function comment_upload_theme() {
@@ -160,6 +160,25 @@ function comment_upload_form_comment_form_alter(&$form, &$form_state) {
 
 }
 
+/**
+ * Implementation of hook_file_download().
+ */
+function comment_upload_file_download($filepath) {
+  $filepath = file_create_path($filepath);
+  $result = db_query("SELECT f.*, cu.nid FROM {files} f INNER JOIN {comment_upload} cu ON f.fid = cu.fid WHERE filepath = '%s'", $filepath);
+   if ($file = db_fetch_object($result)) {
+    if (user_access('view files uploaded to comments') && ($node = node_load($file->nid)) && node_access('view', $node)) {
+      return array(
+        'Content-Type: ' . mime_header_encode($file->filemime),
+        'Content-Length: ' . $file->filesize,
+      );
+    }
+    else {
+      return -1;
+    }
+  }
+}
+
 /*
  * Listen to node deletion and delete files from comments on that node.
  *
@@ -174,6 +193,25 @@ function comment_upload_nodeapi(&$node, $op, $arg = 0) {
       // comment_upload_delete_file just needs a filepath and a fid.
       comment_upload_delete_file($row);
     }
+  }
+}
+
+/**
+ * Implementation of hook_comment().
+ */
+function comment_upload_comment(&$a1, $op) {
+
+  switch ($op) {
+    case 'insert':
+    case 'update':
+      comment_upload_save($a1);
+      break;
+    case 'delete':
+      comment_upload_comment_delete($a1);
+      break;
+    case 'view':
+      comment_upload_comment_view($a1);
+      break;
   }
 }
 
@@ -263,24 +301,6 @@ function comment_upload_create_file_element($file, $count) {
   return $element;
 }
 
-/**
- * Implementation of hook_comment().
- */
-function comment_upload_comment(&$a1, $op) {
-
-  switch ($op) {
-    case 'insert':
-    case 'update':
-      comment_upload_save($a1);
-      break;
-    case 'delete':
-      comment_upload_comment_delete($a1);
-      break;
-    case 'view':
-      comment_upload_comment_view($a1);
-      break;
-  }
-}
 
 /**
  * Remove files when the comment is deleted.
@@ -311,7 +331,9 @@ function comment_upload_comment_view(&$comment) {
   }
 
   if (isset($files) && count($files)) {
-    $comment->comment .= theme('comment_upload_attachments', $files);
+    if (user_access('view files uploaded to comments')) {
+      $comment->comment .= theme('comment_upload_attachments', $files);
+    }
   }
 }
 
@@ -507,6 +529,34 @@ function comment_upload_comment_form_intermittent_submit($form, &$form_state) {
 }
 
 
+
+/**
+ * Load attachments that belong to the comment.
+ *
+ * @param integer $cid
+ * @return array
+ */
+function comment_upload_load_files($cid) {
+  $files = array();
+
+  $result = db_query('SELECT * FROM {files} f INNER JOIN {comment_upload} cu ON f.fid = cu.fid WHERE cu.cid = %d ORDER BY cu.weight, f.fid', $cid);
+  while ($file = db_fetch_array($result)) {
+    $files[$file['fid']] = $file;
+  }
+  return $files;
+}
+
+/**
+ * Delete a file and its associated records.
+ *
+ * @param array $file
+ */
+function comment_upload_delete_file($file) {
+  file_delete($file['filepath']);
+  db_query('DELETE FROM {files} WHERE fid = %d', $file['fid']);
+  db_query("DELETE FROM {comment_upload} WHERE fid = %d", $file['fid']);
+}
+
 /**
  * Theme the attachments list.
  *
@@ -556,31 +606,4 @@ function theme_comment_upload_attachments($files) {
   if (count($rows)) {
     return theme('table', $header, $rows, array('id' => 'attachments'));
   }
-}
-
-/**
- * Load attachments that belong to the comment.
- *
- * @param integer $cid
- * @return array
- */
-function comment_upload_load_files($cid) {
-  $files = array();
-
-  $result = db_query('SELECT * FROM {files} f INNER JOIN {comment_upload} cu ON f.fid = cu.fid WHERE cu.cid = %d ORDER BY cu.weight, f.fid', $cid);
-  while ($file = db_fetch_array($result)) {
-    $files[$file['fid']] = $file;
-  }
-  return $files;
-}
-
-/**
- * Delete a file and its associated records.
- *
- * @param array $file
- */
-function comment_upload_delete_file($file) {
-  file_delete($file['filepath']);
-  db_query('DELETE FROM {files} WHERE fid = %d', $file['fid']);
-  db_query("DELETE FROM {comment_upload} WHERE fid = %d", $file['fid']);
 }

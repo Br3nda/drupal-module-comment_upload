@@ -1,4 +1,4 @@
-; $Id: comment_upload.info,v 1.3.2.1 2008/08/08 11:43:25 heine Exp $
+; $Id: comment_upload.info,v 1.3.2.2 2008/08/08 12:29:24 heine Exp $
 name = "Comment upload"
 description = "Enables file attachments on comments"
 dependencies[] = upload

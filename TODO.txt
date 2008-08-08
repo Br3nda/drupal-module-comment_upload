@@ -1,5 +1,3 @@
- * @todo private file system support.
- * @todo Upgrade path.
  * @todo Single file attachments.
  * @todo Inline images.
  * @todo React to content type changes
