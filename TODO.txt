@@ -1,3 +1,4 @@
- * @todo Single file attachments.
- * @todo Inline images.
- * @todo React to content type changes
+Views integration
+Single file attachments.
+Inline images.
+React to content type changes
