@@ -1,17 +1,17 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.2 2008/08/08 12:29:24 heine Exp $
+// $Id: comment_upload.module,v 1.7.2.3 2008/08/09 09:41:46 heine Exp $
 
 /**
  * @file
  * Provides file attachment functionality for comments.
  *
- * Written by Heine Deelstra. Copyright (c) 2008 by Ustima (http://ustima.com). All rights reserved.
+ * Written by Heine Deelstra. Copyright (c) 2008 by Ustima (http://ustima.com).
  *
  * This module is licensed under GPL v2. See LICENSE.txt for more information.
  */
 
 /**
- * @todo private file system support.
+ * @todo views integration
  * @todo Single file attachments.
  * @todo Inline images.
  * @todo React to content type changes
@@ -65,7 +65,7 @@ function comment_upload_form_alter(&$form, $form_state, $form_id) {
     $form['comment']['comment_upload'] = array(
       '#type' => 'radios',
       '#title' => t('Attachments on comments'),
-      '#default_value' => variable_get('comment_upload_'. $form['#node_type']->type, 1),
+      '#default_value' => variable_get('comment_upload_'. $form['#node_type']->type, 0),
       '#options' => array(t('Disabled'), t('Enabled')), '#weight' => 20,
     );
   }
@@ -104,7 +104,7 @@ function comment_upload_form_comment_form_alter(&$form, &$form_state) {
     // Using the Attach button without JS does not generate a preview.
 
     // Rape the comment form.
-    // Comment_form was not build to rebuild a form an fetch values from $form_state.
+    // Comment_form was not build to rebuild a form and fetch values from $form_state.
     // To preserve changes made by the user, we build the part of the form we just received,
     // mapping $_POST values to #default_values.
     // Because rebuild is TRUE, $_POST has been validated. Nevertheless this is insane.
@@ -120,7 +120,6 @@ function comment_upload_form_comment_form_alter(&$form, &$form_state) {
 
   $form['attachments'] = array(
     '#type' => 'fieldset',
-    '#access' => user_access('upload files'), // TODO: Change perm.
     '#title' => t('File attachments'),
     '#collapsible' => TRUE,
     '#collapsed' => count($files) == 0,
@@ -137,11 +136,6 @@ function comment_upload_form_comment_form_alter(&$form, &$form_state) {
 
   $form['attachments']['wrapper'] += comment_upload_upload_form($files);
   $form['#attributes']['enctype'] = 'multipart/form-data';
-
-  $form['store_file_information'] = array(
-    '#type' => 'value',
-    '#value' => $files,
-  );
 
   // Comment_form dynamically adds buttons such as preview / save in the
   // formbuilder. As the attachment fieldset contains an AHAH element, the
@@ -169,8 +163,8 @@ function comment_upload_file_download($filepath) {
    if ($file = db_fetch_object($result)) {
     if (user_access('view files uploaded to comments') && ($node = node_load($file->nid)) && node_access('view', $node)) {
       return array(
-        'Content-Type: ' . mime_header_encode($file->filemime),
-        'Content-Length: ' . $file->filesize,
+        'Content-Type: '. mime_header_encode($file->filemime),
+        'Content-Length: '. $file->filesize,
       );
     }
     else {
@@ -216,7 +210,7 @@ function comment_upload_comment(&$a1, $op) {
 }
 
 /**
- * Traverse a build form and #value to corresponding #default_values in an unbuild form.
+ * Traverse a build form and copy #value to corresponding #default_values in an unbuild form.
  *
  * @param array $build_form
  * @param array $form
@@ -356,11 +350,8 @@ function comment_upload_save($comment) {
       comment_upload_delete_file($file);
     }
 
-    // Later: make this nicer: add a 'new' flag for new files.
     if (!empty($file['new'])) {
-
       db_query("INSERT INTO {comment_upload} (fid, cid, nid, list, description, weight) VALUES (%d, %d, %d, %d, '%s', %d)", $fid, $comment['cid'], $comment['nid'],  $file['list'], $file['description'], $file['weight']);
-
       $file = (object)$file;
       file_set_status($file, FILE_STATUS_PERMANENT);
     }
@@ -481,7 +472,7 @@ function comment_upload_process_files($form, &$form_state) {
     }
   }
   else {
-    // If no file has been entered, we have an upload element in files.
+    // If no file has been entered, we have an empty upload element in files.
     unset($form_state['values']['files']['upload']);
   }
 
