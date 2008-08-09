@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.4 2008/08/09 19:13:15 heine Exp $
+// $Id: comment_upload.module,v 1.7.2.5 2008/08/09 23:58:30 heine Exp $
 
 /**
  * @file
@@ -118,7 +118,9 @@ function comment_upload_form_comment_form_alter(&$form, $form_state) {
 
     if (isset($form_state['storage']['comment_upload_storage'])) {
       $files = $form_state['storage']['comment_upload_storage'];
-      uasort($files, 'comment_upload_sort_files');
+      if (count($files) > 1) {
+        uasort($files, 'comment_upload_sort_files');
+      }
     }
   }
 
@@ -129,7 +131,7 @@ function comment_upload_form_comment_form_alter(&$form, $form_state) {
     '#title' => t('File attachments'),
     '#collapsible' => TRUE,
     '#collapsed' => count($files) == 0,
-    '#description' => t('Changes made to the attachments are not permanent until you save this post. The first "listed" file will be included in RSS feeds.'),
+    '#description' => t('Changes made to the attachments are not permanent until you save this post.'),
     '#prefix' => '<div class="attachments">',
     '#suffix' => '</div>',
   );
@@ -157,7 +159,6 @@ function comment_upload_form_comment_form_alter(&$form, $form_state) {
   );
 
   $form['#submit'] = array('comment_upload_comment_form_submit', 'comment_form_submit');
-
 }
 
 /**
@@ -255,12 +256,14 @@ function comment_upload_upload_form($files = array()) {
   }
 
   $limits = _upload_file_limits($GLOBALS['user']);
+
   $form['new']['upload'] = array(
     '#type' => 'file',
     '#title' => t('Attach new file'),
     '#size' => 40,
     '#description' => ($limits['resolution'] ? t('Images are larger than %resolution will be resized. ', array('%resolution' => $limits['resolution'])) : '') . t('The maximum upload size is %filesize. Only files with the following extensions may be uploaded: %extensions. ', array('%extensions' => $limits['extensions'], '%filesize' => format_size($limits['file_size']))),
   );
+
   $form['new']['attach'] = array(
     '#type' => 'submit',
     '#value' => t('Attach'),
@@ -272,6 +275,7 @@ function comment_upload_upload_form($files = array()) {
   ),
     '#submit' => array('comment_upload_comment_form_intermittent_submit'),
   );
+
   return $form;
 }
 
@@ -322,7 +326,6 @@ function comment_upload_comment_delete($comment) {
  * @param object $comment
  */
 function comment_upload_comment_view(&$comment) {
-
   if (isset($comment->files)) {
     $files = $comment->files;
   }
@@ -372,7 +375,7 @@ function comment_upload_save($comment) {
  *
  */
 function comment_upload_js() {
-  $cached_form_state = array();
+  $files = array();
 
   if (!$stored_form = form_get_cache($_POST['form_build_id'], $cached_form_state)) {
     exit();
@@ -394,6 +397,7 @@ function comment_upload_js() {
   }
 
   $form_state = array('values' => $_POST);
+
   comment_upload_process_files($stored_form, $form_state);
 
   foreach ($form_state['values']['files'] as $fid => $file) {
@@ -404,13 +408,15 @@ function comment_upload_js() {
 
   $stored_form['attachments']['wrapper'] = array_merge($stored_form['attachments']['wrapper'], $upload_form);
 
+  $stored_form['attachments']['#collapsed'] = FALSE;
+
   form_set_cache($_POST['form_build_id'], $stored_form, $cached_form_state);
 
   foreach ($files as $fid => $file) {
     if (is_numeric($fid)) {
       $upload_form['files'][$fid]['description']['#default_value'] = $form_state['values']['files'][$fid]['description'];
-      $upload_form['files'][$fid]['list']['#default_value'] = isset($form_state['values']['files'][$fid]['list']) ? 1 : 0;
-      $upload_form['files'][$fid]['remove']['#default_value'] = isset($form_state['values']['files'][$fid]['remove']) ? 1 : 0;
+      $upload_form['files'][$fid]['list']['#default_value'] = $form_state['values']['files'][$fid]['list'];
+      $upload_form['files'][$fid]['remove']['#default_value'] = empty($form_state['values']['files'][$fid]['remove']) ? 0 : 1;
       $upload_form['files'][$fid]['weight']['#default_value'] = $form_state['values']['files'][$fid]['weight'];
     }
   }
@@ -470,6 +476,7 @@ function comment_upload_process_files(&$form, &$form_state) {
     $file->list = variable_get('upload_list_default', 1);
     $file->description = $file->filename;
     $file->weight = 0;
+    $file->remove = 0;
     if (!isset($form_state['values']['files'][$file->fid]['filepath'])) {
       $form_state['values']['files'][$file->fid] = (array)$file;
       $file->new = TRUE;
@@ -531,7 +538,6 @@ function comment_upload_comment_form_intermittent_submit($form, &$form_state) {
       $form_state['storage']['comment_upload_storage'][$fid] = $form['#comment_upload_storage'][$fid];
     }
   }
-
   $form_state['rebuild'] = TRUE;
   return;
 }
