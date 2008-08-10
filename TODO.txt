@@ -1,4 +1,0 @@
-Views integration
-Single file attachments.
-Inline images.
-React to content type changes
