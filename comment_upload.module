@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.8 2008/08/11 08:34:59 heine Exp $
+// $Id: comment_upload.module,v 1.7.2.9 2008/08/11 08:42:15 heine Exp $
 
 /**
  * @file
@@ -13,7 +13,6 @@
 /**
  * @todo views integration
  * @todo Single file attachments.
- * @todo Inline images.
  * @todo React to content type changes
  */
 
