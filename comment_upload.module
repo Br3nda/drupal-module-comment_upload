@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.9 2008/08/11 08:42:15 heine Exp $
+// $Id: comment_upload.module,v 1.7.2.10 2008/08/11 12:31:57 heine Exp $
 
 /**
  * @file
@@ -433,13 +433,20 @@ function comment_upload_js() {
 
   comment_upload_process_files($stored_form, $form_state);
 
-  foreach ($form_state['values']['files'] as $fid => $file) {
-    if (isset($stored_form['#comment_upload_storage'][$fid])) {
-      $files[$fid] = $stored_form['#comment_upload_storage'][$fid];
+  if(!empty($form_state['values']['files'])) {
+    foreach ($form_state['values']['files'] as $fid => $file) {
+      if (isset($stored_form['#comment_upload_storage'][$fid])) {
+        $files[$fid] = $stored_form['#comment_upload_storage'][$fid];
+      }
     }
   }
 
   $upload_form = comment_upload_upload_form($files);
+
+  // If there are no files already, an array_merge on the first upload will
+  // cause the file list to sink below new on preview with a form error.
+
+  unset($stored_form['attachments']['wrapper']['new']);
 
   $stored_form['attachments']['wrapper'] = array_merge($stored_form['attachments']['wrapper'], $upload_form);
 
