@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.7 2008/08/10 00:56:26 heine Exp $
+// $Id: comment_upload.module,v 1.7.2.8 2008/08/11 08:34:59 heine Exp $
 
 /**
  * @file
@@ -43,7 +43,8 @@ function comment_upload_perm() {
 function comment_upload_theme() {
   return array(
     'comment_upload_attachments' => array(
-      'arguments' => array('files' => NULL),
+      'template' => 'comment-upload-attachments',
+      'arguments' => array('files' => NULL, 'display_images' => FALSE, 'preset' => NULL),
     ),
     'comment_upload_form_current' => array(
       'arguments' => array('form' => NULL),
@@ -66,7 +67,27 @@ function comment_upload_form_alter(&$form, $form_state, $form_id) {
       '#type' => 'radios',
       '#title' => t('Attachments on comments'),
       '#default_value' => variable_get('comment_upload_'. $form['#node_type']->type, 0),
-      '#options' => array(t('Disabled'), t('Enabled')), '#weight' => 20,
+      '#options' => array(t('Disabled'), t('Enabled')),
+      '#weight' => 20,
+    );
+
+
+    $image_options = array(
+      'none' => t('Display as attachment'),
+      'inline' => t('Display as full image'),
+    );
+    if (module_exists('imagecache')) {
+      $presets = imagecache_presets();
+      foreach ($presets as $preset_id => $preset) {
+        $image_options[$preset_id] = t('Display via imagecache preset !preset', array('!preset' => $preset['presetname']));
+      }
+    }
+    $form['comment']['comment_upload_images'] = array(
+      '#type' => 'select',
+      '#title' => t('Image attachments on comments'),
+      '#default_value' => variable_get('comment_upload_images_'. $form['#node_type']->type, 'none'),
+      '#options' => $image_options,
+      '#weight' => 20,
     );
   }
 }
@@ -326,6 +347,8 @@ function comment_upload_comment_delete($comment) {
  * @param object $comment
  */
 function comment_upload_comment_view(&$comment) {
+  $display_images = FALSE; $preset_name = '';
+
   if (isset($comment->files)) {
     $files = $comment->files;
   }
@@ -335,7 +358,18 @@ function comment_upload_comment_view(&$comment) {
 
   if (isset($files) && count($files)) {
     if (user_access('view files uploaded to comments')) {
-      $comment->comment .= theme('comment_upload_attachments', $files);
+      $node = node_load($comment->nid);
+
+      $display_setting = variable_get('comment_upload_images_'. $node->type, 'none');
+
+      if ($display_setting != 'none') {
+        $display_images = TRUE;
+        if (is_numeric($display_setting)) {
+          $imagecache_preset = imagecache_preset($display_setting);
+          $preset_name = $imagecache_preset['presetname'];
+        }
+      }
+      $comment->comment .= theme('comment_upload_attachments', $files, $display_images, $preset_name);
     }
   }
 }
@@ -401,7 +435,9 @@ function comment_upload_js() {
   comment_upload_process_files($stored_form, $form_state);
 
   foreach ($form_state['values']['files'] as $fid => $file) {
-    $files[$fid] = $stored_form['#comment_upload_storage'][$fid];
+    if (isset($stored_form['#comment_upload_storage'][$fid])) {
+      $files[$fid] = $stored_form['#comment_upload_storage'][$fid];
+    }
   }
 
   $upload_form = comment_upload_upload_form($files);
@@ -572,7 +608,19 @@ function comment_upload_delete_file($file) {
 }
 
 /**
- * Theme the attachments list.
+ * Sort on weight, if weights are equal compare fid.
+ *
+ * uasort callback.
+ */
+function comment_upload_sort_files($a, $b) {
+  if ($a['weight'] == $b['weight']) {
+    return ($a['fid'] < $b['fid']) ? -1 : 1;
+  }
+  return ($a['weight'] < $b['weight']) ? -1 : 1;
+}
+
+/**
+ * Theme the attachments list in the upload form.
  *
  * Taken from upload.module.
  *
@@ -599,38 +647,43 @@ function theme_comment_upload_form_current(&$form) {
   return $output;
 }
 
+/**
+ * Theme the upload a new attachment part of the upload form.
+ *
+ * Taken from upload.module.
+ *
+ * @ingroup themeable
+ */
 function theme_comment_upload_form_new($form) {
-  drupal_add_tabledrag('comment=upload-attachments', 'order', 'sibling', 'comment-upload-weight');
+  drupal_add_tabledrag('comment-upload-attachments', 'order', 'sibling', 'comment-upload-weight');
   $output = drupal_render($form);
   return $output;
 }
 
-function theme_comment_upload_attachments($files) {
-  $header = array(t('Attachment'), t('Size'));
-  $rows = array();
+function template_preprocess_comment_upload_attachments(&$variables) {
+  $row = 0;
+  $variables['images'] = array();
+  $variables['attachments'] = array();
+  foreach ($variables['files'] as $fid => $file) {
+    if ($file['list'] && empty($file['remove'])) {
+      $text = $file['description'] ? $file['description'] : $file['filename'];
 
-  foreach ($files as $file) {
-    $file = (object)$file;
-    if ($file->list && empty($file->remove)) {
-      $href = file_create_url($file->filepath);
-      $text = $file->description ? $file->description : $file->filename;
-      $rows[] = array(l($text, $href), format_size($file->filesize));
+      if ($variables['display_images'] && strpos($file['filemime'], 'image/') === 0) {
+        if ($variables['preset']) {
+          $variables['images'][$fid]['image'] = theme('imagecache', $variables['preset'], file_create_path($file['filepath']), $text, $text);
+        }
+        else {
+          $variables['images'][$fid]['image'] = theme('image', file_create_path($file['filepath']), $text, $text);
+        }
+        $variables['images'][$fid]['url'] = check_url(file_create_url($file['filepath']));
+      }
+      else {
+        $variables['attachments'][$fid]['zebra'] = $row % 2 == 0 ? 'odd' : 'even';
+        $variables['attachments'][$fid]['text'] = check_plain($text);
+        $variables['attachments'][$fid]['url'] = check_url(file_create_url($file['filepath']));
+        $variables['attachments'][$fid]['size'] = format_size($file['filesize']);
+        $row++;
+      }
     }
   }
-  if (count($rows)) {
-    return theme('table', $header, $rows, array('id' => 'attachments'));
-  }
-}
-
-/**
- * Sort on weight, if weights are equal compare fid.
- *
- * uasort callback.
- *
- */
-function comment_upload_sort_files($a, $b) {
-  if ($a['weight'] == $b['weight']) {
-    return ($a['fid'] < $b['fid']) ? -1 : 1;
-  }
-  return ($a['weight'] < $b['weight']) ? -1 : 1;
 }

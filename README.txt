@@ -1,4 +1,4 @@
-$Id: README.txt,v 1.2.2.3 2008/08/09 09:44:37 heine Exp $
+$Id: README.txt,v 1.2.2.4 2008/08/11 08:34:59 heine Exp $
 
 Comment upload provides the ability to upload "file attachments" to comments.
 
@@ -36,7 +36,7 @@ CONFIGURATION
 - Allowed extensions and the maximum allowed upload sizes are taken from the 
   Upload module settings on Administer >> Site configuration >> File uploads 
   (admin/settings/uploads).
-  
+
 
 NOTE
 ====
