@@ -1,7 +1,7 @@
 <?php if ($images): ?>
   <div class="comment-upload-images">
     <?php foreach ($images as $fid => $image): ?>
-      <a href="<?php print $image['url'] ?>"><?php print $image['image'] ?><?a>
+      <a href="<?php print $image['url'] ?>"><?php print $image['image'] ?></a>
     <?php endforeach; ?>
   </div>
 <?php endif; ?>
