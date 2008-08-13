@@ -1,4 +1,4 @@
-$Id: README.txt,v 1.2.2.4 2008/08/11 08:34:59 heine Exp $
+$Id: README.txt,v 1.2.2.5 2008/08/13 14:43:34 heine Exp $
 
 Comment upload provides the ability to upload "file attachments" to comments.
 
@@ -28,6 +28,17 @@ CONFIGURATION
   types. Use the edit links on Administer >> Content management >> Content types 
   (admin/content/node-type) to access these pages.
 
+- Display of images is governed by the Image attachments on comments setting.
+  
+  - Display as attachments will include images in the attachments table.
+  - Display as full image will add the entire image below the comment.
+  
+  If you install imagecache (http://drupal.org/project/imagecache) you will see
+  additional 'Display via imagecache preset [presetname] options for any 
+  preset you have created.
+  
+  This is useful to ensure your page is not distorted by overly large images.
+
 - Comment upload provides two permissions:
 
   - "upload files to comments"
@@ -36,6 +47,28 @@ CONFIGURATION
 - Allowed extensions and the maximum allowed upload sizes are taken from the 
   Upload module settings on Administer >> Site configuration >> File uploads 
   (admin/settings/uploads).
+
+
+THEMING
+=======
+To override the display of attachments, copy the file
+"comment-upload-attachments.tpl.php" to your PHPtemplate theme to make changes.
+
+Variables:
+
+$images      - an array of images (when not set to Display as attachments).
+
+with each element containing:
+  'url'      - url of the full image
+  'image'    - <img> tag
+
+$attachments - an array of attachments
+
+with each element containing:
+  'url'      -  url of the file
+  'zebra'    - 'odd' or 'even' to enable zebra striping
+  'text'     - description when set or filename of the file
+  'size'     - size of the file in bytes, kB or Mb.
 
 
 NOTE
