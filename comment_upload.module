@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.13 2008/08/16 05:34:56 heine Exp $
+// $Id: comment_upload.module,v 1.7.2.14 2008/08/16 05:36:58 heine Exp $
 
 /**
  * @file
@@ -135,6 +135,7 @@ function comment_upload_form_comment_form_alter(&$form, $form_state) {
 
     $build_form = form_builder('comment_form', $copy_form, $state);
     comment_upload_value_to_default($build_form, $form);
+    form_clean_id(NULL, TRUE);
 
     if (isset($form_state['storage']['comment_upload_storage'])) {
       $files = $form_state['storage']['comment_upload_storage'];
