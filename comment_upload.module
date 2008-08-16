@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.11 2008/08/16 05:32:21 heine Exp $
+// $Id: comment_upload.module,v 1.7.2.12 2008/08/16 05:33:49 heine Exp $
 
 /**
  * @file
@@ -449,8 +449,8 @@ function comment_upload_js() {
   foreach ($files as $fid => $file) {
     if (is_numeric($fid)) {
       $upload_form['files'][$fid]['description']['#default_value'] = $form_state['values']['files'][$fid]['description'];
-      $upload_form['files'][$fid]['list']['#default_value'] = $form_state['values']['files'][$fid]['list'];
-      $upload_form['files'][$fid]['remove']['#default_value'] = empty($form_state['values']['files'][$fid]['remove']) ? 0 : 1;
+      $upload_form['files'][$fid]['list']['#default_value'] = !empty($form_state['values']['files'][$fid]['list']);
+      $upload_form['files'][$fid]['remove']['#default_value'] = !empty($form_state['values']['files'][$fid]['remove']);
       $upload_form['files'][$fid]['weight']['#default_value'] = $form_state['values']['files'][$fid]['weight'];
     }
   }
