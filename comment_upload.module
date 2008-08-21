@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.15 2008/08/21 10:20:18 heine Exp $
+// $Id: comment_upload.module,v 1.7.2.16 2008/08/21 19:16:26 heine Exp $
 
 /**
  * @file
@@ -353,7 +353,7 @@ function comment_upload_comment_view(&$comment) {
     $files = $comment->files;
   }
   else {
-    $comment->files = comment_upload_load_files($comment->cid);
+    $files = comment_upload_load_files($comment->cid);
   }
 
   if (isset($files) && count($files)) {
@@ -369,6 +369,7 @@ function comment_upload_comment_view(&$comment) {
           $preset_name = $imagecache_preset['presetname'];
         }
       }
+      $comment->files = $files;
       $comment->comment .= theme('comment_upload_attachments', $files, $display_images, $preset_name);
     }
   }
