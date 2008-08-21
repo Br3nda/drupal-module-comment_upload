@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.14 2008/08/16 05:36:58 heine Exp $
+// $Id: comment_upload.module,v 1.7.2.15 2008/08/21 10:20:18 heine Exp $
 
 /**
  * @file
@@ -353,7 +353,7 @@ function comment_upload_comment_view(&$comment) {
     $files = $comment->files;
   }
   else {
-    $files = comment_upload_load_files($comment->cid);
+    $comment->files = comment_upload_load_files($comment->cid);
   }
 
   if (isset($files) && count($files)) {
