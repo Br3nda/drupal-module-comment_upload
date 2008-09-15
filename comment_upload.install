@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.install,v 1.4.2.2 2008/08/08 12:29:24 heine Exp $
+// $Id: comment_upload.install,v 1.4.2.3 2008/09/15 16:51:35 heine Exp $
 
 
 /**
@@ -16,6 +16,7 @@
  */
 function comment_upload_install() {
   drupal_install_schema('comment_upload');
+  db_query("UPDATE {system} SET weight = 10 WHERE name = 'comment_upload'");
 }
 
 /**
@@ -226,6 +227,12 @@ function comment_upload_update_6000() {
     drupal_write_record('comment_upload', $file);
   }
   db_drop_table($ret, 'comment_upload_files');
+  return $ret;
+}
+
+function comment_upload_update_6001() {
+  $ret = array();
+  $ret[] = update_sql("UPDATE {system} SET weight = 10 WHERE name = 'comment_upload'");
   return $ret;
 }
 
