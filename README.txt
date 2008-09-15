@@ -1,9 +1,8 @@
-$Id: README.txt,v 1.2.2.6 2008/08/21 10:04:54 heine Exp $
+$Id: README.txt,v 1.2.2.7 2008/09/15 16:45:15 heine Exp $
 
 Comment upload provides the ability to upload "file attachments" to comments.
 
-Compared to Comment upload 5., the 6.x version still lacks views integration 
-and the automatic display of images.
+Compared to Comment upload 5.x, the 6.x version still lacks views integration.
 
 Comment upload requires at least Drupal 6.4.
 

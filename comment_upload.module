@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.16 2008/08/21 19:16:26 heine Exp $
+// $Id: comment_upload.module,v 1.7.2.17 2008/09/15 16:45:15 heine Exp $
 
 /**
  * @file
@@ -89,15 +89,17 @@ function comment_upload_form_alter(&$form, $form_state, $form_id) {
       '#weight' => 20,
     );
   }
+  elseif ($form_id == 'comment_form') {
+    comment_upload_alter_comment_form($form, $form_state);
+  }
 }
 
-
 /**
- * Hook into the comment_form to support file uploads.
+ * Alter the comment form to support AHAH uploads.
  *
- * Implementation of hook_form_form-id_alter().
+ * Note; not a hook implementation.
  */
-function comment_upload_form_comment_form_alter(&$form, $form_state) {
+function comment_upload_alter_comment_form(&$form, $form_state) {
 
   if (!user_access('upload files to comments')) {
     return;
@@ -135,6 +137,7 @@ function comment_upload_form_comment_form_alter(&$form, $form_state) {
 
     $build_form = form_builder('comment_form', $copy_form, $state);
     comment_upload_value_to_default($build_form, $form);
+
     form_clean_id(NULL, TRUE);
 
     if (isset($form_state['storage']['comment_upload_storage'])) {
