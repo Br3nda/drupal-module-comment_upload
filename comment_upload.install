@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.install,v 1.4.2.4 2008/12/11 10:57:50 heine Exp $
+// $Id: comment_upload.install,v 1.4.2.5 2008/12/11 11:02:11 heine Exp $
 
 
 /**
@@ -222,9 +222,9 @@ function comment_upload_update_6000() {
 
   $result = db_query("SELECT cuf.*, c.uid FROM {comment_upload_files} cuf INNER JOIN {comments} c ON cuf.cid = c.cid");
   while ($file = db_fetch_object($result)) {
-    unset($file->fid);
-    drupal_write_record('files', $file);
-    drupal_write_record('comment_upload', $file);
+    db_query("INSERT INTO {files} (filename, filepath, filemime, filesize, uid, status) VALUES ('%s', '%s', '%s', %d, %d, %d)", $file->filename, $file->filepath, $file->filemime, $file->filesize, $file->uid, 1);
+    $fid = db_last_insert_id('files', 'fid');
+    db_query("INSERT INTO {comment_upload} (fid, nid, cid, description, list) VALUES (%d, %d, %d, '%s', %d)", $fid, $file->nid, $file->cid, $file->description, $file->list);   
   }
   db_drop_table($ret, 'comment_upload_files');
   return $ret;
