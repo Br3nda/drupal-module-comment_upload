@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.install,v 1.4.2.3 2008/09/15 16:51:35 heine Exp $
+// $Id: comment_upload.install,v 1.4.2.4 2008/12/11 10:57:50 heine Exp $
 
 
 /**
@@ -24,7 +24,7 @@ function comment_upload_install() {
  */
 function comment_upload_uninstall() {
   drupal_uninstall_schema('comment_upload');
-  db_query("DELETE FROM {variables} WHERE name LIKE 'comment_upload_%'");
+  db_query("DELETE FROM {variable} WHERE name LIKE 'comment_upload_%'");
 }
 
 /**
