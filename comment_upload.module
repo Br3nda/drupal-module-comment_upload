@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.6.2.14 2008/05/04 12:39:05 heine Exp $
+// $Id: comment_upload.module,v 1.6.2.15 2009/01/19 10:03:05 heine Exp $
 
 /**
  * Implementation of hook_comment.
@@ -339,7 +339,7 @@ function comment_upload_file_download($file) {
         $name = mime_header_encode($file->filename);
         $type = mime_header_encode($file->filemime);
         return array(
-          'Content-Type: '. $type .'; name='. $name,
+          'Content-Type: '. $type,
           'Content-Length: '. $file->filesize,
           'Expires: 0', 'Pragma: cache', 'Cache-Control: private',
         );
