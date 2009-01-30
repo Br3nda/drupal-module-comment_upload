@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.19 2009/01/30 19:09:00 netaustin Exp $
+// $Id: comment_upload.module,v 1.7.2.20 2009/01/30 19:51:24 netaustin Exp $
 
 /**
  * @file
@@ -564,6 +564,9 @@ function comment_upload_comment_form_validate($form, &$form_state) {
   }
   if ((isset($form_state['values']['op']) && $form_state['values']['op'] == 'Preview') || (isset($form_state['clicked_button']) && $form_state['clicked_button']['#value'] == 'Attach')) {
     $form_state['rebuild'] = TRUE;
+  }
+  elseif (!empty($form_state['submitted'])) {
+    unset($form_state['storage']);
   }
   return;
 }
