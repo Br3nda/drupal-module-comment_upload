@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.18 2009/01/30 07:19:01 netaustin Exp $
+// $Id: comment_upload.module,v 1.7.2.19 2009/01/30 19:09:00 netaustin Exp $
 
 /**
  * @file
@@ -174,10 +174,6 @@ function comment_upload_alter_comment_form(&$form, $form_state) {
   // functionality as well.
 
   $form['#validate'][] = 'comment_upload_comment_form_validate';
-
-  // We have to prepend the submit handler, otherwise comment.module will
-  // fire first and call our hook_comment 'insert' op.
-  array_unshift($form['#submit'], 'comment_upload_comment_form_submit');
 }
 
 /**

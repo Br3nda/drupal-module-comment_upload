@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.install,v 1.4.2.7 2009/01/30 08:37:27 heine Exp $
+// $Id: comment_upload.install,v 1.4.2.8 2009/01/30 19:09:00 netaustin Exp $
 
 
 /**
@@ -160,7 +160,8 @@ function comment_upload_update_3() {
  * Implementation of hook_update_N().
  */
 function comment_upload_update_6000() {
-    $schema['comment_upload'] = array(
+  global $db_url;
+  $schema['comment_upload'] = array(
     'description' => t('Stores uploaded file information and table associations.'),
     'fields' => array(
       'fid' => array(
@@ -218,13 +219,24 @@ function comment_upload_update_6000() {
   $ret = array();
 
   db_create_table($ret, 'comment_upload', $schema['comment_upload']);
-
-  $result = db_query("SELECT cuf.*, c.uid FROM {comment_upload_files} cuf INNER JOIN {comments} c ON cuf.cid = c.cid");
-  while ($file = db_fetch_object($result)) {
-    db_query("INSERT INTO {files} (filename, filepath, filemime, filesize, uid, status) VALUES ('%s', '%s', '%s', %d, %d, %d)", $file->filename, $file->filepath, $file->filemime, $file->filesize, $file->uid, 1);
-    $fid = db_last_insert_id('files', 'fid');
-    db_query("INSERT INTO {comment_upload} (fid, nid, cid, description, list) VALUES (%d, %d, %d, '%s', %d)", $fid, $file->nid, $file->cid, $file->description, $file->list);
+  if (substr($db_url, 0, 5) == 'mysql') {
+    $max_file_id = db_result(db_query("SELECT MAX(fid) FROM files"));
+    $offset = $max_file_id + 1;
+    db_query("INSERT INTO {files} (fid, uid, filename, filepath, filemime, filesize, status, timestamp) SELECT cuf.fid + %d, c.uid, cuf.filename, cuf.filepath, cuf.filemime, cuf.filesize, 1, c.timestamp FROM {comment_upload_files} cuf INNER JOIN {comments} c ON cuf.cid = c.cid", $offset);
+    $max_file_id = db_result(db_query("SELECT MAX(fid) FROM {files}"));
+    db_query("ALTER TABLE {files} SET AUTO_INCREMENT = %d", $max_file_id + 1);
+    db_query("INSERT INTO {comment_upload} (fid, nid, cid, description, list) SELECT cuf.fid + %d, cuf.nid, cuf.cid, cuf.description, cuf.list FROM {comment_upload_files}", $offset);
   }
+
+  else {
+    $result = db_query("SELECT cuf.*, c.uid FROM {comment_upload_files} cuf INNER JOIN {comments} c ON cuf.cid = c.cid");
+    while ($file = db_fetch_object($result)) {
+      db_query("INSERT INTO {files} (filename, filepath, filemime, filesize, uid, status) VALUES ('%s', '%s', '%s', %d, %d, %d)", $file->filename, $file->filepath, $file->filemime, $file->filesize, $file->uid, 1);
+      $fid = db_last_insert_id('files', 'fid');
+      db_query("INSERT INTO {comment_upload} (fid, nid, cid, description, list) VALUES (%d, %d, %d, '%s', %d)", $fid, $file->nid, $file->cid, $file->description, $file->list);
+    }
+  }
+
   db_drop_table($ret, 'comment_upload_files');
   return $ret;
 }
@@ -232,6 +244,6 @@ function comment_upload_update_6000() {
 
 function comment_upload_update_6002() {
   $ret = array();
-  $ret[] = update_sql("UPDATE {system} SET weight = 0 WHERE name = 'comment_upload'");
+  $ret[] = update_sql("UPDATE {system} SET weight = 3 WHERE name = 'comment_upload'");
   return $ret;
 }
