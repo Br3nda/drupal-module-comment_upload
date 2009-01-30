@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.install,v 1.4.2.6 2009/01/30 08:12:37 heine Exp $
+// $Id: comment_upload.install,v 1.4.2.7 2009/01/30 08:37:27 heine Exp $
 
 
 /**
@@ -229,11 +229,6 @@ function comment_upload_update_6000() {
   return $ret;
 }
 
-function comment_upload_update_6001() {
-  $ret = array();
-  $ret[] = update_sql("UPDATE {system} SET weight = 10 WHERE name = 'comment_upload'");
-  return $ret;
-}
 
 function comment_upload_update_6002() {
   $ret = array();
