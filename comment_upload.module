@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.17 2008/09/15 16:45:15 heine Exp $
+// $Id: comment_upload.module,v 1.7.2.18 2009/01/30 07:19:01 netaustin Exp $
 
 /**
  * @file
@@ -70,7 +70,6 @@ function comment_upload_form_alter(&$form, $form_state, $form_id) {
       '#weight' => 20,
     );
 
-
     $image_options = array(
       'none' => t('Display as attachment'),
       'inline' => t('Display as full image'),
@@ -100,7 +99,6 @@ function comment_upload_form_alter(&$form, $form_state, $form_id) {
  * Note; not a hook implementation.
  */
 function comment_upload_alter_comment_form(&$form, $form_state) {
-
   if (!user_access('upload files to comments')) {
     return;
   }
@@ -175,14 +173,11 @@ function comment_upload_alter_comment_form(&$form, $form_state) {
   // no longer be called. Therefore, comment_upload needs to implement preview
   // functionality as well.
 
-  $form['preview'] = array(
-    '#type' => 'submit',
-    '#value' => t('Preview'),
-    '#submit' => array('comment_upload_comment_form_intermittent_submit'),
-    '#weight' => 20,
-  );
+  $form['#validate'][] = 'comment_upload_comment_form_validate';
 
-  $form['#submit'] = array('comment_upload_comment_form_submit', 'comment_form_submit');
+  // We have to prepend the submit handler, otherwise comment.module will
+  // fire first and call our hook_comment 'insert' op.
+  array_unshift($form['#submit'], 'comment_upload_comment_form_submit');
 }
 
 /**
@@ -296,8 +291,9 @@ function comment_upload_upload_form($files = array()) {
       'path' => 'comment-upload/js',
       'wrapper' => 'attach-wrapper',
       'progress' => array('type' => 'bar', 'message' => t('Please wait...')),
-  ),
-    '#submit' => array('comment_upload_comment_form_intermittent_submit'),
+    ),
+    '#submit' => array(),
+    '#validate' => array('comment_upload_comment_form_validate'),
   );
 
   return $form;
@@ -419,18 +415,22 @@ function comment_upload_js() {
     return drupal_not_found();
   }
 
-  if (!($stored_form = form_get_cache($_POST['form_build_id'], $cached_form_state)) || $stored_form['form_id']['#value'] != 'comment_form' || !$stored_form['attachments']) {
-    form_set_error('form_token', t('Validation error, please try again. If this error persists, please contact the site administrator.'));
-    $output = theme('status_messages');
-    print drupal_to_js(array('status' => TRUE, 'data' => $output));
-    exit();
-  }
+  $form_state = array('storage' => NULL, 'submitted' => FALSE, 'rebuild' => TRUE);
+  $form_build_id = $_POST['form_build_id'];
+  $stored_form = form_get_cache($form_build_id, $form_state);
+  $args = $stored_form['#parameters'];
+  $form_id = array_shift($args);
+  $form_state['post'] = $stored_form['#post'] = $_POST;
+  $form['#programmed'] = $stored_form['#redirect'] = FALSE;
 
-  $form_state = array('values' => $_POST);
+  $stored_form = drupal_process_form($form_id, $stored_form, $form_state);
+
+  // Rebuild the form and cache it again.
+  $stored_form = drupal_rebuild_form($form_id, $form_state, $args, $form_build_id);
 
   comment_upload_process_files($stored_form, $form_state);
 
-  if(!empty($form_state['values']['files'])) {
+  if (!empty($form_state['values']['files'])) {
     foreach ($form_state['values']['files'] as $fid => $file) {
       if (isset($stored_form['#comment_upload_storage'][$fid])) {
         $files[$fid] = $stored_form['#comment_upload_storage'][$fid];
@@ -448,8 +448,6 @@ function comment_upload_js() {
   $stored_form['attachments']['wrapper'] = array_merge($stored_form['attachments']['wrapper'], $upload_form);
 
   $stored_form['attachments']['#collapsed'] = FALSE;
-
-  form_set_cache($_POST['form_build_id'], $stored_form, $cached_form_state);
 
   foreach ($files as $fid => $file) {
     if (is_numeric($fid)) {
@@ -470,6 +468,8 @@ function comment_upload_js() {
 
   drupal_alter('form', $upload_form, array(), 'comment_upload_js');
 
+  form_set_cache($form_build_id, $stored_form, array());
+
   $form_state = array('submitted' => FALSE);
 
   $build_form = form_builder('comment_upload_js', $upload_form, $form_state);
@@ -478,7 +478,8 @@ function comment_upload_js() {
   // We send the updated file attachments form.
   // Don't call drupal_json(). ahah.js uses an iframe and
   // the header output by drupal_json() causes problems in some browsers.
-  print drupal_to_js(array('status' => TRUE, 'data' => $output));
+  $GLOBALS['devel_shutdown'] = FALSE;
+  echo drupal_to_js(array('status' => TRUE, 'data' => $output));
   exit();
 }
 
@@ -490,7 +491,6 @@ function comment_upload_js() {
  * @param array $form_state
  */
 function comment_upload_process_files(&$form, &$form_state) {
-
   $limits = _upload_file_limits($GLOBALS['user']);
   $validators = array(
     'file_validate_extensions' => array($limits['extensions']),
@@ -505,7 +505,7 @@ function comment_upload_process_files(&$form, &$form_state) {
     $file->weight = 0;
     $file->remove = 0;
     if (!isset($form_state['values']['files'][$file->fid]['filepath'])) {
-      $form_state['values']['files'][$file->fid] = (array)$file;
+      $form_state['values']['files'][$file->fid] = (array) $file;
       $file->new = TRUE;
       $form['#comment_upload_storage'][$file->fid] = (array) $file;
     }
@@ -532,7 +532,6 @@ function comment_upload_process_files(&$form, &$form_state) {
     }
     uasort($form_state['values']['files'], 'element_sort');
   }
-
 }
 
 /**
@@ -552,9 +551,11 @@ function comment_upload_comment_form_submit($form, &$form_state) {
  * @param array $form
  * @param array $form_state
  */
-function comment_upload_comment_form_intermittent_submit($form, &$form_state) {
+function comment_upload_comment_form_validate($form, &$form_state) {
+  if ((!empty($form_state['rebuild']) || empty($form_state['values']['op'])) && (isset($form_state['clicked_button']) && $form_state['clicked_button']['#value'] != 'Attach')) {
+    return;
+  }
   comment_upload_process_files($form, $form_state);
-
   foreach ($form['#comment_upload_storage'] as $fid => $file) {
     if (is_numeric($fid)) {
       $form['#comment_upload_storage'][$fid]['description'] = $form_state['values']['files'][$fid]['description'];
@@ -565,11 +566,11 @@ function comment_upload_comment_form_intermittent_submit($form, &$form_state) {
       $form_state['storage']['comment_upload_storage'][$fid] = $form['#comment_upload_storage'][$fid];
     }
   }
-  $form_state['rebuild'] = TRUE;
+  if ((isset($form_state['values']['op']) && $form_state['values']['op'] == 'Preview') || (isset($form_state['clicked_button']) && $form_state['clicked_button']['#value'] == 'Attach')) {
+    $form_state['rebuild'] = TRUE;
+  }
   return;
 }
-
-
 
 /**
  * Load attachments that belong to the comment.
