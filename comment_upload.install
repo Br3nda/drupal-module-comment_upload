@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.install,v 1.4.2.8 2009/01/30 19:09:00 netaustin Exp $
+// $Id: comment_upload.install,v 1.4.2.9 2009/01/30 22:17:23 netaustin Exp $
 
 
 /**
@@ -224,8 +224,8 @@ function comment_upload_update_6000() {
     $offset = $max_file_id + 1;
     db_query("INSERT INTO {files} (fid, uid, filename, filepath, filemime, filesize, status, timestamp) SELECT cuf.fid + %d, c.uid, cuf.filename, cuf.filepath, cuf.filemime, cuf.filesize, 1, c.timestamp FROM {comment_upload_files} cuf INNER JOIN {comments} c ON cuf.cid = c.cid", $offset);
     $max_file_id = db_result(db_query("SELECT MAX(fid) FROM {files}"));
-    db_query("ALTER TABLE {files} SET AUTO_INCREMENT = %d", $max_file_id + 1);
-    db_query("INSERT INTO {comment_upload} (fid, nid, cid, description, list) SELECT cuf.fid + %d, cuf.nid, cuf.cid, cuf.description, cuf.list FROM {comment_upload_files}", $offset);
+    db_query("ALTER TABLE {files} AUTO_INCREMENT = %d", $max_file_id + 1);
+    db_query("INSERT INTO {comment_upload} (fid, nid, cid, description, list) SELECT cuf.fid + %d, cuf.nid, cuf.cid, cuf.description, cuf.list FROM {comment_upload_files} cuf", $offset);
   }
 
   else {

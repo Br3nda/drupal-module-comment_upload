@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.20 2009/01/30 19:51:24 netaustin Exp $
+// $Id: comment_upload.module,v 1.7.2.21 2009/01/30 22:17:23 netaustin Exp $
 
 /**
  * @file
@@ -548,9 +548,13 @@ function comment_upload_comment_form_submit($form, &$form_state) {
  * @param array $form_state
  */
 function comment_upload_comment_form_validate($form, &$form_state) {
-  if ((!empty($form_state['rebuild']) || empty($form_state['values']['op'])) && (isset($form_state['clicked_button']) && $form_state['clicked_button']['#value'] != 'Attach')) {
+  if (empty($form_state['values']['op']) && (isset($form_state['clicked_button']) && $form_state['clicked_button']['#value'] != 'Attach')) {
     return;
   }
+  elseif(!empty($form_state['rebuild'])) {
+    return;
+  }
+
   comment_upload_process_files($form, $form_state);
   foreach ($form['#comment_upload_storage'] as $fid => $file) {
     if (is_numeric($fid)) {
