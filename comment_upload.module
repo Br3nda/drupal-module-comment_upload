@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.21 2009/01/30 22:17:23 netaustin Exp $
+// $Id: comment_upload.module,v 1.7.2.22 2009/04/16 04:37:00 netaustin Exp $
 
 /**
  * @file
@@ -68,6 +68,14 @@ function comment_upload_form_alter(&$form, $form_state, $form_id) {
       '#default_value' => variable_get('comment_upload_'. $form['#node_type']->type, 0),
       '#options' => array(t('Disabled'), t('Enabled')),
       '#weight' => 20,
+    );
+
+    $form['comment']['comment_upload_info'] = array(
+      '#type' => 'radios',
+      '#title' => t('Prepend node ID and comment number to file'),
+      '#default_value' => variable_get('comment_upload_info_'. $form['#node_type']->type, 0),
+      '#options' => array(t('Disabled'), t('Enabled')),
+      '#weight' => 21,
     );
 
     $image_options = array(
@@ -464,8 +472,6 @@ function comment_upload_js() {
 
   drupal_alter('form', $upload_form, array(), 'comment_upload_js');
 
-  form_set_cache($form_build_id, $stored_form, array());
-
   $form_state = array('submitted' => FALSE);
 
   $build_form = form_builder('comment_upload_js', $upload_form, $form_state);
@@ -493,6 +499,12 @@ function comment_upload_process_files(&$form, &$form_state) {
     'file_validate_image_resolution' => array($limits['resolution']),
     'file_validate_size' => array($limits['file_size'], $limits['user_size']),
   );
+
+  $node = node_load($form_state['values']['nid']);
+  if (variable_get('comment_upload_info_'. $node->type, 0)) {
+    $prefix = $form_state['values']['nid'] . '-' . substr($form['subject']['#value'], 1);
+    $_FILES['files']['name']['upload'] = $prefix . '-' . $_FILES['files']['name']['upload'];
+  }
 
   // Save new file uploads.
   if (user_access('upload files to comments') && ($file = file_save_upload('upload', $validators, file_directory_path()))) {
