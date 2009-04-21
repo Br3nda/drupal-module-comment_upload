@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.22 2009/04/16 04:37:00 netaustin Exp $
+// $Id: comment_upload.module,v 1.7.2.23 2009/04/21 16:41:04 netaustin Exp $
 
 /**
  * @file
@@ -68,14 +68,6 @@ function comment_upload_form_alter(&$form, $form_state, $form_id) {
       '#default_value' => variable_get('comment_upload_'. $form['#node_type']->type, 0),
       '#options' => array(t('Disabled'), t('Enabled')),
       '#weight' => 20,
-    );
-
-    $form['comment']['comment_upload_info'] = array(
-      '#type' => 'radios',
-      '#title' => t('Prepend node ID and comment number to file'),
-      '#default_value' => variable_get('comment_upload_info_'. $form['#node_type']->type, 0),
-      '#options' => array(t('Disabled'), t('Enabled')),
-      '#weight' => 21,
     );
 
     $image_options = array(
@@ -410,72 +402,64 @@ function comment_upload_save($comment) {
 
 /**
  * React to the Attach button; update file information on AHAH request.
- *
  */
 function comment_upload_js() {
-  $files = array();
-
   if (empty($_POST)) {
     return drupal_not_found();
   }
 
-  $form_state = array('storage' => NULL, 'submitted' => FALSE, 'rebuild' => TRUE);
-  $form_build_id = $_POST['form_build_id'];
-  $stored_form = form_get_cache($form_build_id, $form_state);
-  $args = $stored_form['#parameters'];
-  $form_id = array_shift($args);
-  $form_state['post'] = $stored_form['#post'] = $_POST;
-  $form['#programmed'] = $stored_form['#redirect'] = FALSE;
+  $cached_form_state = array();
+  $files = array();
 
-  $stored_form = drupal_process_form($form_id, $stored_form, $form_state);
+  // Load the form from the Form API cache.
+  if (!($cached_form = form_get_cache($_POST['form_build_id'], $cached_form_state)) || !isset($cached_form['#comment_upload_storage']) || !isset($cached_form['attachments'])) {
+    form_set_error('form_token', t('Validation error, please try again. If this error persists, please contact the site administrator.'));
+    $output = theme('status_messages');
+    print drupal_to_js(array('status' => TRUE, 'data' => $output));
+    exit();
+  }
 
-  // Rebuild the form and cache it again.
-  $stored_form = drupal_rebuild_form($form_id, $form_state, $args, $form_build_id);
+  $form_state = array('values' => $_POST);
 
-  comment_upload_process_files($stored_form, $form_state);
+  comment_upload_process_files($cached_form, $form_state);
 
   if (!empty($form_state['values']['files'])) {
     foreach ($form_state['values']['files'] as $fid => $file) {
-      if (isset($stored_form['#comment_upload_storage'][$fid])) {
-        $files[$fid] = $stored_form['#comment_upload_storage'][$fid];
+      if (isset($cached_form['#comment_upload_storage'][$fid])) {
+        $files[$fid] = $cached_form['#comment_upload_storage'][$fid];
       }
     }
   }
 
-  $upload_form = comment_upload_upload_form($files);
+  $form = comment_upload_upload_form($files);
 
-  // If there are no files already, an array_merge on the first upload will
-  // cause the file list to sink below new on preview with a form error.
-
-  unset($stored_form['attachments']['wrapper']['new']);
-
-  $stored_form['attachments']['wrapper'] = array_merge($stored_form['attachments']['wrapper'], $upload_form);
-
-  $stored_form['attachments']['#collapsed'] = FALSE;
+  unset($cached_form['attachments']['wrapper']['new']);
+  $cached_form['attachments']['wrapper'] = array_merge($cached_form['attachments']['wrapper'], $form);
+  $cached_form['attachments']['#collapsed'] = FALSE;
+  form_set_cache($_POST['form_build_id'], $cached_form, $cached_form_state);
 
   foreach ($files as $fid => $file) {
     if (is_numeric($fid)) {
-      $upload_form['files'][$fid]['description']['#default_value'] = $form_state['values']['files'][$fid]['description'];
-      $upload_form['files'][$fid]['list']['#default_value'] = !empty($form_state['values']['files'][$fid]['list']);
-      $upload_form['files'][$fid]['remove']['#default_value'] = !empty($form_state['values']['files'][$fid]['remove']);
-      $upload_form['files'][$fid]['weight']['#default_value'] = $form_state['values']['files'][$fid]['weight'];
+      $form['files'][$fid]['description']['#default_value'] = $form_state['values']['files'][$fid]['description'];
+      $form['files'][$fid]['list']['#default_value'] = !empty($form_state['values']['files'][$fid]['list']);
+      $form['files'][$fid]['remove']['#default_value'] = !empty($form_state['values']['files'][$fid]['remove']);
+      $form['files'][$fid]['weight']['#default_value'] = $form_state['values']['files'][$fid]['weight'];
     }
   }
 
   // Render the form for output.
-  $upload_form += array(
+  $form += array(
     '#post' => $_POST,
     '#programmed' => FALSE,
     '#tree' => FALSE,
     '#parents' => array(),
   );
 
-  drupal_alter('form', $upload_form, array(), 'comment_upload_js');
-
+  drupal_alter('form', $form, array(), 'comment_upload_js');
   $form_state = array('submitted' => FALSE);
 
-  $build_form = form_builder('comment_upload_js', $upload_form, $form_state);
-  $output = theme('status_messages') . drupal_render($build_form);
+  $form = form_builder('comment_upload_js', $form, $form_state);
+  $output = theme('status_messages') . drupal_render($form);
 
   // We send the updated file attachments form.
   // Don't call drupal_json(). ahah.js uses an iframe and
@@ -484,7 +468,6 @@ function comment_upload_js() {
   echo drupal_to_js(array('status' => TRUE, 'data' => $output));
   exit();
 }
-
 
 /**
  * Process file uploads.
@@ -499,12 +482,6 @@ function comment_upload_process_files(&$form, &$form_state) {
     'file_validate_image_resolution' => array($limits['resolution']),
     'file_validate_size' => array($limits['file_size'], $limits['user_size']),
   );
-
-  $node = node_load($form_state['values']['nid']);
-  if (variable_get('comment_upload_info_'. $node->type, 0)) {
-    $prefix = $form_state['values']['nid'] . '-' . substr($form['subject']['#value'], 1);
-    $_FILES['files']['name']['upload'] = $prefix . '-' . $_FILES['files']['name']['upload'];
-  }
 
   // Save new file uploads.
   if (user_access('upload files to comments') && ($file = file_save_upload('upload', $validators, file_directory_path()))) {
