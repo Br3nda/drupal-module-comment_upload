@@ -1,5 +1,5 @@
 <?php
-// $Id: comment_upload.module,v 1.7.2.24 2009/06/06 01:51:55 netaustin Exp $
+// $Id: comment_upload.module,v 1.7.2.25 2009/07/14 20:00:58 netaustin Exp $
 
 /**
  * @file
@@ -535,7 +535,7 @@ function comment_upload_comment_form_submit($form, &$form_state) {
  * @param array $form_state
  */
 function comment_upload_comment_form_validate($form, &$form_state) {
-  if (empty($form_state['values']['op']) && (isset($form_state['clicked_button']) && $form_state['clicked_button']['#value'] != 'Attach')) {
+  if (empty($form_state['values']['op']) && (isset($form_state['clicked_button']) && $form_state['clicked_button']['#value'] != t('Attach'))) {
     return;
   }
   elseif(!empty($form_state['rebuild'])) {
@@ -553,7 +553,7 @@ function comment_upload_comment_form_validate($form, &$form_state) {
       $form_state['storage']['comment_upload_storage'][$fid] = $form['#comment_upload_storage'][$fid];
     }
   }
-  if ((isset($form_state['values']['op']) && $form_state['values']['op'] == 'Preview') || (isset($form_state['clicked_button']) && $form_state['clicked_button']['#value'] == 'Attach')) {
+  if ((isset($form_state['values']['op']) && $form_state['values']['op'] == t('Preview')) || (isset($form_state['clicked_button']) && $form_state['clicked_button']['#value'] == t('Attach'))) {
     $form_state['rebuild'] = TRUE;
   }
   elseif (!empty($form_state['submitted'])) {
